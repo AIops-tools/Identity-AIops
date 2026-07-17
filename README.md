@@ -1,3 +1,5 @@
+<!-- mcp-name: io.github.AIops-tools/identity-aiops -->
+
 # Identity AIops
 
 **Governed AI-ops for self-hosted identity providers — Keycloak + authentik.**
