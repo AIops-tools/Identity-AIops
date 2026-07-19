@@ -1,7 +1,6 @@
 # identity-aiops capabilities
 
-> Preview / mock-only — not run against a live IdP. **27 MCP tools** (21 read,
-> 6 write) across Keycloak (admin REST `/admin/realms/{realm}/...`,
+> **29 MCP tools** (21 read, 6 write, 2 undo) across Keycloak (admin REST `/admin/realms/{realm}/...`,
 > client-credentials grant, refresh-on-401) and authentik (API v3 `/api/v3/...`,
 > Bearer token). The concrete REST paths below are modelled from each project's
 > public API and need live verification.

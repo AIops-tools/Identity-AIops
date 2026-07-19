@@ -17,6 +17,10 @@ def list_clients(max_results: int = 200, target: Optional[str] = None) -> dict:
     Args:
         max_results: Page bound (default 200).
         target: IdP target name from config; omit for the default.
+
+    Returns {"clients": [...], "returned": N, "limit": L, "truncated": bool},
+    with truncated measured rather than guessed. Fields the IdP did not return
+    are null — a null pkceMethod means no PKCE method is pinned.
     """
     return ops.list_clients(_get_connection(target), max_results)
 
@@ -44,10 +48,19 @@ def client_sessions(
 ) -> dict:
     """[READ] Active user sessions on one client (Keycloak).
 
+    KEYCLOAK ONLY. authentik has no per-provider session listing, so on an
+    authentik target this returns {"error": "Resource \'client_sessions\' is
+    not mapped for platform \'authentik\'..."}. That is a platform-capability
+    answer, not a fault: switch approach (user_sessions per user) rather than
+    retrying or reporting the tool as broken.
+
     Args:
         client_id: Internal id, from list_clients.
         max_results: Page bound (default 200).
         target: IdP target name from config; omit for the default.
+
+    Returns {"sessions": [...], "returned": N, "limit": L, "truncated": bool},
+    with truncated measured rather than guessed.
     """
     return ops.client_sessions(_get_connection(target), client_id, max_results)
 
@@ -58,7 +71,15 @@ def client_sessions(
 def client_session_stats(target: Optional[str] = None) -> dict:
     """[READ] Active-session counts per client, busiest first (Keycloak).
 
+    KEYCLOAK ONLY. authentik has no per-client session rollup, so on an
+    authentik target this returns {"error": "Resource
+    \'client_session_stats\' is not mapped for platform \'authentik\'..."}.
+    A platform-capability answer, not a fault — do not retry.
+
     Args:
         target: IdP target name from config; omit for the default.
+
+    Returns {"clients": [...], "returned": N, "truncated": false} — the rollup
+    is unbounded, so this listing is always complete.
     """
     return ops.client_session_stats(_get_connection(target))

@@ -96,7 +96,7 @@ def revoke_user_sessions(conn: Any, user_id: str) -> dict:
     the prior session count is recorded so the audit shows the blast radius.
     """
     prior = user_ops.user_sessions(conn, user_id)
-    prior_count = prior.get("total") if "error" not in prior else None
+    prior_count = prior.get("returned") if "error" not in prior else None
     if _is_keycloak(conn):
         conn.post(conn.path("user_logout", user_id=user_id))
         revoked: Any = prior_count if prior_count is not None else True

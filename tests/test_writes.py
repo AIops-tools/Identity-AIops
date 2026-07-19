@@ -73,7 +73,7 @@ def test_revoke_sessions_keycloak_logout_with_prior_count(monkeypatch):
 
     conn = _conn(KEYCLOAK)
     monkeypatch.setattr(user_ops, "user_sessions",
-                        lambda c, u: {"total": 3, "sessions": [{}, {}, {}]})
+                        lambda c, u: {"returned": 3, "sessions": [{}, {}, {}]})
     out = ops.revoke_user_sessions(conn, "u1")
 
     assert out["priorState"] == {"sessionCount": 3}
@@ -89,7 +89,7 @@ def test_revoke_sessions_authentik_deletes_each_session(monkeypatch):
     conn = _conn(AUTHENTIK)
     monkeypatch.setattr(
         user_ops, "user_sessions",
-        lambda c, u: {"total": 2, "sessions": [{"id": "s1"}, {"id": "s2"}]},
+        lambda c, u: {"returned": 2, "sessions": [{"id": "s1"}, {"id": "s2"}]},
     )
     out = ops.revoke_user_sessions(conn, "9")
 
@@ -279,7 +279,7 @@ def test_irreversible_writes_record_no_undo(monkeypatch):
     conn.get.return_value = {"value": "sec"}
     conn.post.return_value = {"value": "new"}
     monkeypatch.setattr(user_ops, "user_sessions",
-                        lambda c, u: {"total": 1, "sessions": [{"id": "s1"}]})
+                        lambda c, u: {"returned": 1, "sessions": [{"id": "s1"}]})
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)
 
     r1 = t.revoke_user_sessions(user_id="u1")

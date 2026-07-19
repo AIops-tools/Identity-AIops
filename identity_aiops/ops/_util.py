@@ -15,7 +15,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any
 
-from identity_aiops.governance import sanitize
+from identity_aiops.governance import opt_str, sanitize
 
 
 def as_obj(data: Any) -> dict:
@@ -26,6 +26,22 @@ def as_obj(data: Any) -> dict:
 def s(value: Any, limit: int = 256) -> str:
     """Sanitize an arbitrary value to a bounded, injection-safe string."""
     return sanitize(str(value if value is not None else ""), limit)
+
+
+def opt_s(value: Any, limit: int = 256) -> str | None:
+    """Sanitize an *optional* IdP field, preserving absence as ``None``.
+
+    Companion to :func:`s`, which folds a missing field into ``""``. That
+    conflation is invisible to the caller: an empty string reads as "the IdP
+    returned this field and it is blank", when the truth may be "Keycloak has
+    no such field / authentik never populated it". A consumer — a smaller local
+    model especially — cannot recover the difference and tends to invent one.
+
+    Use this for every optional field on a normalized row (a user's email, an
+    event's client, a session's last-access time); keep :func:`s` for values
+    that are always present, such as a caller-supplied id being echoed back.
+    """
+    return opt_str(value, limit)
 
 
 def pick(row: dict, *keys: str, default: Any = None) -> Any:

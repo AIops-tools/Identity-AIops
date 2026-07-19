@@ -42,5 +42,8 @@ def list_identity_providers(target: Optional[str] = None) -> dict:
 
     Args:
         target: IdP target name from config; omit for the default.
+
+    Returns {"identityProviders": [...], "returned": N, "truncated": false} —
+    the IdP returns the complete set, so this listing is never clipped.
     """
     return realm_ops.list_identity_providers(_get_connection(target))

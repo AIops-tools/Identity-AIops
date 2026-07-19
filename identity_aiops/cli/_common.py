@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import functools
+import json
 from collections.abc import Callable
 from pathlib import Path
 from typing import Annotated, Any
@@ -56,6 +57,24 @@ def get_connection(target: str | None, config_path: Path | None = None) -> tuple
     cfg = load_config(config_path)
     mgr = ConnectionManager(cfg)
     return mgr.connect(target), cfg
+
+
+def print_result(result: dict, *, limit_flag: str = "--limit") -> None:
+    """Print an ops result as JSON, then say so out loud if it was truncated.
+
+    The envelope already carries ``truncated``, but a reader skimming a long
+    JSON blob will not notice the flag at the bottom of it — and that is the
+    exact failure mode the envelope exists to prevent. So the notice is printed
+    after the payload, in its own line, naming the flag to raise.
+    """
+    console.print_json(json.dumps(result))
+    if isinstance(result, dict) and result.get("truncated"):
+        limit = result.get("limit")
+        bound = f" (limit {limit})" if limit is not None else ""
+        console.print(
+            f"[yellow]… results truncated{bound} — more exist; "
+            f"re-run with a higher {limit_flag}[/]"
+        )
 
 
 def dry_run_print(*, operation: str, api_call: str, parameters: dict | None = None) -> None:

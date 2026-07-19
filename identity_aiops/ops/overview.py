@@ -4,6 +4,10 @@ A single call an operator can lead with: platform + realm, user / client /
 identity-provider counts, and the size of the recent failed-login feed.
 Resilient — a failing sub-call degrades to a partial summary with an
 ``errors`` list.
+
+Counts drawn from a limit-bounded read carry a matching ``*Truncated`` flag,
+because "42 recent failed logins" and "at least 42, the feed was clipped" call
+for different next steps.
 """
 
 from __future__ import annotations
@@ -31,7 +35,7 @@ def identity_overview(conn: Any) -> dict:
         errors.append(f"users: {uc['error']}")
 
     cl = client_ops.list_clients(conn)
-    client_total = cl.get("total") if "error" not in cl else None
+    client_total = cl.get("returned") if "error" not in cl else None
     public_clients = (
         sum(1 for c in cl.get("clients", []) if c.get("publicClient"))
         if "error" not in cl
@@ -41,11 +45,13 @@ def identity_overview(conn: Any) -> dict:
         errors.append(f"clients: {cl['error']}")
 
     idps = realm_ops.list_identity_providers(conn)
-    idp_total = idps.get("total") if "error" not in idps else None
+    idp_total = idps.get("returned") if "error" not in idps else None
     if "error" in idps:
         errors.append(f"identityProviders: {idps['error']}")
 
     failed = event_ops.failed_login_events(conn, max_results=200)
+    if failed.get("error"):
+        errors.append(f"failedLogins: {failed['error']}")
 
     return {
         "platform": conn.target.platform,
@@ -57,6 +63,10 @@ def identity_overview(conn: Any) -> dict:
         "clientCount": client_total,
         "publicClients": public_clients,
         "identityProviderCount": idp_total,
-        "recentFailedLogins": len(failed),
+        "recentFailedLogins": failed.get("returned", 0),
+        # The failed-login feed is limit-bounded: say so, so "N recent failures"
+        # is never read as "N failures exist" when the feed was clipped.
+        "recentFailedLoginsTruncated": bool(failed.get("truncated")),
+        "clientsTruncated": bool(cl.get("truncated")) if "error" not in cl else None,
         "errors": errors,
     }

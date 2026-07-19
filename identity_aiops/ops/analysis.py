@@ -51,8 +51,13 @@ _EXPIRED_ERRORS = {"expired_password", "expired_code", "invalid_token", "stale_c
 _LOCKOUT_ERRORS = {"user_temporarily_disabled", "user_disabled", "account_locked"}
 
 
-def pull_failed_logins(conn: Any, limit: int = 500) -> list[dict]:
-    """[READ] Live failed-login events for the RCA."""
+def pull_failed_logins(conn: Any, limit: int = 500) -> dict:
+    """[READ] Live failed-login events for the RCA, as a truncation envelope.
+
+    The envelope is passed through rather than unwrapped to a bare list: an
+    RCA computed over a clipped feed can only ever be a lower bound, and the
+    caller has to be able to say so.
+    """
     return event_ops.failed_login_events(conn, max_results=limit)
 
 
@@ -73,6 +78,7 @@ def login_failure_rca(
     events: list[dict],
     window_minutes: int = DEFAULT_WINDOW_MINUTES,
     now: float | None = None,
+    feed_truncated: bool = False,
 ) -> dict:
     """[READ] Separate brute-force / misconfigured-client / expired-credential
     storms in the failed-auth feed — cause + action per finding.
@@ -94,9 +100,15 @@ def login_failure_rca(
         lockout errors (brute-force tripping protection, or a policy change).
 
     Every finding carries its numbers.
+
+    ``feed_truncated`` records that the failed-login feed the caller pulled was
+    itself clipped by its limit; it is echoed back as ``feedTruncated`` so the
+    result cannot be read as a complete census of the window. Every count here
+    is then a lower bound, and the thresholds may not have been reached only
+    because the events that would have reached them were never fetched.
     """
     rows = [e for e in (events or [])
-            if str(e.get("type", "")).upper() in event_ops.LOGIN_FAIL_TYPES
+            if str(e.get("type") or "").upper() in event_ops.LOGIN_FAIL_TYPES
             or e.get("error")]
     if now is None:
         now = max((epoch_seconds(e.get("time")) for e in rows), default=time.time())
@@ -229,6 +241,12 @@ def login_failure_rca(
         "byUser": _table(by_user, "distinctIps"),
         "byClient": _table(by_client, "distinctUsers"),
         "findings": findings[:MAX_ROWS],
+        "findingsTotal": len(findings),
+        # Two independent ways this result can be partial, each stated rather
+        # than left to be inferred from a count coincidence.
+        "truncated": len(findings) > MAX_ROWS,
+        "maxRows": MAX_ROWS,
+        "feedTruncated": bool(feed_truncated),
         "note": (
             "Advisory read-only heuristic over the failed-auth feed; findings "
             "show their numbers. Event retention on the IdP bounds what this "
@@ -241,15 +259,26 @@ def login_failure_rca(
 DEFAULT_STALE_DAYS = 90
 
 
-def pull_stale_inputs(conn: Any, max_users: int = 500) -> tuple[list, list, list]:
+def pull_stale_inputs(conn: Any, max_users: int = 500) -> tuple[list, list, list, dict]:
     """[READ] Live users + successful-login events (+ sessions where the
-    platform lists them) for the stale-access audit."""
+    platform lists them) for the stale-access audit.
+
+    Returns ``(users, logins, sessions, inputs_truncated)`` — the fourth
+    element records, per input feed, whether the pull hit its limit. A stale
+    audit over a clipped user list names fewer stale accounts than exist, and
+    one over a clipped login feed marks *active* users stale because their
+    sign-in was never fetched. Both need to be visible in the result.
+    """
     users_out = user_ops.list_users(conn, max_results=max_users)
     users = users_out.get("users", []) if "error" not in users_out else []
     is_kc = conn.target.platform == KEYCLOAK
     ok_type = "LOGIN" if is_kc else "login"
     ev_out = event_ops.login_events(conn, event_type=ok_type, max_results=500)
     logins = ev_out.get("events", []) if "error" not in ev_out else []
+    truncated = {
+        "users": bool(users_out.get("truncated")),
+        "loginEvents": bool(ev_out.get("truncated")),
+    }
     sessions: list[dict] = []
     if conn.platform.supports("sessions"):
         try:
@@ -267,7 +296,7 @@ def pull_stale_inputs(conn: Any, max_users: int = 500) -> tuple[list, list, list
             ]
         except Exception:  # noqa: BLE001 — sessions are optional input
             sessions = []
-    return users, logins, sessions
+    return users, logins, sessions, truncated
 
 
 def stale_access_audit(
@@ -276,6 +305,7 @@ def stale_access_audit(
     sessions: list[dict] | None = None,
     stale_days: int = DEFAULT_STALE_DAYS,
     now: float | None = None,
+    inputs_truncated: dict | None = None,
 ) -> dict:
     """[READ] Flag stale, never-used, and mis-used accounts + orphaned sessions.
 
@@ -295,13 +325,16 @@ def stale_access_audit(
     Last sign-in = the user row's ``lastLogin`` (authentik) or the newest
     successful login event (Keycloak) — event retention bounds the Keycloak
     view; the note says so.
+
+    ``inputs_truncated`` (from ``pull_stale_inputs``) is echoed back so a
+    result computed over clipped inputs cannot be read as a full audit.
     """
     now = now if now is not None else time.time()
     cutoff = now - stale_days * 86400
 
     last_login: dict[str, float] = {}
     for e in login_events or []:
-        if str(e.get("type", "")).upper() not in event_ops.LOGIN_OK_TYPES:
+        if str(e.get("type") or "").upper() not in event_ops.LOGIN_OK_TYPES:
             continue
         u = str(e.get("user") or "")
         if u:
@@ -371,6 +404,15 @@ def stale_access_audit(
         "neverLoggedIn": never[:MAX_ROWS],
         "serviceAccountsInteractive": svc_interactive[:MAX_ROWS],
         "orphanedSessions": orphaned[:MAX_ROWS],
+        # The four lists above are capped at maxRows; the *Count fields are the
+        # full totals. Say plainly when a list was cut rather than making the
+        # reader compare the two.
+        "truncated": any(
+            len(lst) > MAX_ROWS
+            for lst in (stale, never, svc_interactive, orphaned)
+        ),
+        "maxRows": MAX_ROWS,
+        "inputsTruncated": dict(inputs_truncated or {}),
         "note": (
             "Advisory read-only heuristic. Last sign-in comes from the user "
             "record and the IdP's event feed — event retention bounds the view "
@@ -387,10 +429,17 @@ _LOCALHOST_MARKERS = ("http://localhost", "http://127.0.0.1", "http://[::1]")
 _SEVERITY_SCORE = {"high": 30, "medium": 15, "low": 5}
 
 
-def pull_clients(conn: Any, max_results: int = 200) -> list[dict]:
-    """[READ] Live normalized client rows for the misconfiguration audit."""
+def pull_clients(conn: Any, max_results: int = 200) -> tuple[list[dict], bool]:
+    """[READ] Live normalized client rows for the misconfiguration audit.
+
+    Returns ``(clients, truncated)`` — an audit over a clipped client list
+    reports fewer misconfigured clients than exist, which is exactly the
+    direction a reader must not mistake for "the estate is clean".
+    """
     out = client_ops.list_clients(conn, max_results=max_results)
-    return out.get("clients", []) if "error" not in out else []
+    if "error" in out:
+        return [], False
+    return out.get("clients", []), bool(out.get("truncated"))
 
 
 def _client_findings(c: dict) -> list[dict]:
@@ -445,7 +494,10 @@ def _client_findings(c: dict) -> list[dict]:
     return findings
 
 
-def client_misconfig_audit(clients: list[dict]) -> dict:
+def client_misconfig_audit(
+    clients: list[dict],
+    inputs_truncated: bool = False,
+) -> dict:
     """[READ] Rank enabled clients by OAuth/OIDC misconfiguration risk.
 
     Pure analysis over normalized client rows (from ``pull_clients`` or
@@ -455,6 +507,10 @@ def client_misconfig_audit(clients: list[dict]) -> dict:
     missing PKCE on public clients, and the password grant. Each client gets a
     riskScore (summed severity weights) and every finding names its evidence +
     action. Disabled clients are skipped.
+
+    ``inputs_truncated`` (from ``pull_clients``) is echoed back as
+    ``inputsTruncated``: a clean result over a clipped client list is not
+    evidence of a clean estate.
     """
     ranked = []
     total_findings = 0
@@ -480,6 +536,9 @@ def client_misconfig_audit(clients: list[dict]) -> dict:
         "findingsCount": total_findings,
         "severityWeights": dict(_SEVERITY_SCORE),
         "ranked": ranked[:MAX_ROWS],
+        "truncated": len(ranked) > MAX_ROWS,
+        "maxRows": MAX_ROWS,
+        "inputsTruncated": bool(inputs_truncated),
         "note": (
             "Advisory read-only heuristic per the OAuth 2.0 Security BCP: "
             "riskScore = sum of severity weights; every finding lists its "
@@ -489,14 +548,17 @@ def client_misconfig_audit(clients: list[dict]) -> dict:
 
 
 # ── 4. MFA coverage analysis ─────────────────────────────────────────────────
-def pull_mfa_inputs(conn: Any, max_users: int = 200) -> tuple[list, dict]:
+def pull_mfa_inputs(conn: Any, max_users: int = 200) -> tuple[list, dict, bool]:
     """[READ] Live users + per-user credential lists for the MFA analysis.
 
     Credential lookup is one call per user, so the pull is bounded by
-    ``max_users`` (the analysis reports the bound).
+    ``max_users``. Returns ``(users, credentials_by_user, truncated)`` — a
+    coverage percentage computed over a sample of a larger realm is a sample
+    statistic, and the caller has to know which one it is holding.
     """
     users_out = user_ops.list_users(conn, max_results=max_users)
     users = users_out.get("users", []) if "error" not in users_out else []
+    truncated = bool(users_out.get("truncated"))
     creds: dict[str, list] = {}
     for u in users:
         uid = str(u.get("id") or "")
@@ -506,13 +568,14 @@ def pull_mfa_inputs(conn: Any, max_users: int = 200) -> tuple[list, dict]:
         creds[str(u.get("username") or uid)] = (
             cred_out.get("credentials", []) if "error" not in cred_out else []
         )
-    return users, creds
+    return users, creds, truncated
 
 
 def mfa_coverage_analysis(
     users: list[dict],
     credentials_by_user: dict[str, list],
     groups_by_user: dict[str, list[str]] | None = None,
+    inputs_truncated: bool = False,
 ) -> dict:
     """[READ] Second-factor coverage: overall %, per group %, and the gap list.
 
@@ -522,6 +585,9 @@ def mfa_coverage_analysis(
     (otp/totp/hotp/webauthn/duo/sms) exists. Only enabled human users count —
     service accounts authenticate with client credentials, not MFA. When
     ``groups_by_user`` is provided, coverage is also broken down per group.
+
+    ``inputs_truncated`` (from ``pull_mfa_inputs``) is echoed back: a coverage
+    percentage over a clipped user list describes the sample, not the realm.
     """
     covered, uncovered = [], []
     for u in users or []:
@@ -564,6 +630,9 @@ def mfa_coverage_analysis(
         "secondFactorTypes": sorted(user_ops.SECOND_FACTOR_TYPES),
         "perGroup": per_group[:MAX_ROWS],
         "usersWithoutMfa": [s(u) for u in uncovered[:MAX_ROWS]],
+        "truncated": len(uncovered) > MAX_ROWS or len(per_group) > MAX_ROWS,
+        "maxRows": MAX_ROWS,
+        "inputsTruncated": bool(inputs_truncated),
         "note": (
             "Advisory read-only heuristic: a user counts as covered when a "
             "confirmed second-factor credential exists. Enabled human users "

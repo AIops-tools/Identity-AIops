@@ -13,9 +13,10 @@ operations **with receipts** — every tool call is audited, writes carry risk
 tiers with dry-run previews and undo tokens, and high-risk actions require a
 named human approver.
 
-> **Preview**: modelled on the public Keycloak admin REST API and authentik API
-> v3 and exercised against mocked responses; not yet validated against live
-> production instances. `identity-aiops doctor` is the fastest live check.
+> **Verification status**: modelled on the public Keycloak admin REST API and
+> authentik API v3 and exercised against mocked responses; there is no recorded
+> end-to-end run against a live instance yet. `identity-aiops doctor` is the
+> fastest live check — see [`docs/VERIFICATION.md`](docs/VERIFICATION.md).
 
 ## What it does
 
@@ -28,7 +29,8 @@ named human approver.
 | **Flagship RCA** | `login_failure_rca` — brute-force (spray/targeted) vs misconfigured client vs expired-credential storm vs lockout storm; `stale_access_audit` — dormant users, never-logged-in accounts, service accounts used interactively, orphaned sessions; `client_misconfig_audit` — wildcard/http redirect URIs, public clients with secrets, implicit flow, missing PKCE, password grant (ranked risk); `mfa_coverage_analysis` — coverage %, gap list |
 | Governed writes | `disable_user` / `enable_user` (undo pair), `revoke_user_sessions`, `require_password_reset` (undo clears the flag), `update_client_redirect_uris` (undo replays the prior list), `rotate_client_secret` (masked priorState) |
 
-27 MCP tools: 21 reads (including the 4 analyses) + 6 governed writes. The
+29 MCP tools: 21 reads (including the 4 analyses) + 6 governed writes + 2 undo
+tools (`undo_list`, `undo_apply`). The
 same tools work on both platforms — a per-target `platform` field selects the
 API shape (auth flow + resource paths).
 
@@ -48,6 +50,46 @@ the stale-access audit's orphaned-session check.
 Missing a platform (Authelia, Zitadel, Ory...), an endpoint, or an analysis
 you need? **缺功能提 issue/PR 欢迎留言** — open an issue or PR at
 https://github.com/AIops-tools/Identity-AIops, feature requests welcome.
+
+## Security: read-only mode
+
+This tool is meant to be handed to an AI agent, so its safety story is enforced
+by the server rather than requested in a prompt:
+
+```bash
+export IDENTITY_READ_ONLY=1
+```
+
+With that set, the **7 write tools are never registered**. An MCP client
+lists **22 tools instead of 29** — the writes are not hidden, not
+gated behind a flag, and not merely refused when called. They are absent from
+the session. A model cannot invoke a tool it was never offered, and cannot be
+argued into one.
+
+That distinction is the whole point. A tool that exists but refuses still invites
+retry loops and "I'll describe the call instead" behaviour from smaller models,
+and it leaves a reviewer trusting a promise. An absent tool is a fact you can
+check: connect, list the tools, and see that the writes are not there.
+
+Enforcement is two layers deep, so the switch cannot be sidestepped by changing
+entry point:
+
+| Layer | What it does | Covers |
+|---|---|---|
+| `@governed_tool` harness | refuses every non-read operation outright | MCP, CLI, and in-process callers |
+| MCP registration | write tools are removed from `list_tools()` | anything speaking MCP |
+
+Read operations are unaffected, and every call is still audited to
+`~/.identity-aiops/audit.db`.
+
+> The read/write split is derived from each tool's declared `risk_level`, and a
+> test asserts that this never disagrees with the `[READ]`/`[WRITE]` tag in the
+> tool's own documentation — so a write can't quietly present itself as a read.
+
+Running a smaller / local model? See
+[agent-guardrails.md](skills/identity-aiops/references/agent-guardrails.md) — it lists
+the guardrails this tool now enforces for you (so you don't spend prompt budget
+restating them) and gives a ready-made system prompt for what's left.
 
 ## Quick start
 

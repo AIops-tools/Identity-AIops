@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from identity_aiops.ops._util import as_obj, num, pick, s, to_bool
+from identity_aiops.ops._util import as_obj, num, opt_s, pick, s, to_bool
 from identity_aiops.platform import KEYCLOAK
 
 
@@ -42,7 +42,13 @@ def redirect_uris(r: dict) -> list[str]:
 
 
 def norm_client(r: dict) -> dict:
-    """Normalise one client/provider row across Keycloak / authentik."""
+    """Normalise one client/provider row across Keycloak / authentik.
+
+    Optional identity fields come back as ``None`` when the IdP did not return
+    them. ``pkceMethod`` is the one that changes an answer: ``null`` means "no
+    PKCE method is pinned on this client", which is a real finding, whereas
+    ``""`` reads as a value that happens to be blank.
+    """
     attrs = as_obj(r.get("attributes"))
     public = (
         to_bool(r.get("publicClient"))
@@ -50,9 +56,9 @@ def norm_client(r: dict) -> dict:
         else str(r.get("client_type") or "").lower() == "public"
     )
     return {
-        "id": s(pick(r, "id", "pk")),
-        "clientId": s(pick(r, "clientId", "client_id", default="")),
-        "name": s(pick(r, "name", default="")),
+        "id": opt_s(pick(r, "id", "pk")),
+        "clientId": opt_s(pick(r, "clientId", "client_id")),
+        "name": opt_s(pick(r, "name")),
         "enabled": to_bool(pick(r, "enabled", default=True)),
         "protocol": s(pick(r, "protocol", default="openid-connect")),
         "publicClient": public,
@@ -61,7 +67,7 @@ def norm_client(r: dict) -> dict:
         "directAccessGrants": to_bool(pick(r, "directAccessGrantsEnabled", default=False)),
         "serviceAccounts": to_bool(pick(r, "serviceAccountsEnabled", default=False)),
         "secretConfigured": bool(pick(r, "secret", "client_secret", default="")),
-        "pkceMethod": s(pick(attrs, "pkce.code.challenge.method", default="")),
+        "pkceMethod": opt_s(pick(attrs, "pkce.code.challenge.method")),
     }
 
 
@@ -70,13 +76,24 @@ def list_clients(conn: Any, max_results: int = 200) -> dict:
 
     Keycloak lists realm clients; authentik lists OAuth2 providers (where the
     client configuration lives).
+
+    Returns a truncation envelope; one extra client is requested so
+    ``truncated`` is measured. The misconfiguration audit is only as complete
+    as this list, so a silent clip would understate the finding count.
     """
     try:
-        limit = max(1, int(max_results))
-        params = {"max": limit} if _is_keycloak(conn) else {"page_size": limit}
+        requested = max(1, int(max_results))
+        probe = requested + 1
+        params = {"max": probe} if _is_keycloak(conn) else {"page_size": probe}
         rows = conn.platform.rows(conn.get(conn.path("clients"), params=params))
-        clients = [norm_client(r) for r in rows]
-        return {"total": len(clients), "clients": clients}
+        truncated = len(rows) > requested
+        clients = [norm_client(r) for r in rows[:requested]]
+        return {
+            "clients": clients,
+            "returned": len(clients),
+            "limit": requested,
+            "truncated": truncated,
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
 
@@ -97,25 +114,37 @@ def client_sessions(conn: Any, client_id: str, max_results: int = 200) -> dict:
     """[READ] Active user sessions on one client (Keycloak).
 
     authentik has no per-provider session listing; the platform map raises a
-    teaching error that surfaces here as ``{"error": ...}``.
+    teaching ``KeyError`` that surfaces here as ``{"error": ...}``. That is a
+    platform-capability answer, not a fault — retrying it on authentik will
+    never succeed; use ``user_sessions`` per user instead.
+
+    Returns a truncation envelope; one extra session is requested so
+    ``truncated`` is measured.
     """
     try:
-        limit = max(1, int(max_results))
+        requested = max(1, int(max_results))
         rows = conn.platform.rows(
             conn.get(conn.path("client_sessions", client_id=client_id),
-                     params={"max": limit})
+                     params={"max": requested + 1})
         )
+        truncated = len(rows) > requested
         sessions = [
             {
-                "id": s(pick(r, "id", "uuid")),
-                "username": s(pick(r, "username", default="")),
-                "ip": s(pick(r, "ipAddress", default="")),
-                "started": s(pick(r, "start", default="")),
-                "lastAccess": s(pick(r, "lastAccess", default="")),
+                "id": opt_s(pick(r, "id", "uuid")),
+                "username": opt_s(pick(r, "username")),
+                "ip": opt_s(pick(r, "ipAddress")),
+                "started": opt_s(pick(r, "start")),
+                "lastAccess": opt_s(pick(r, "lastAccess")),
             }
-            for r in rows
+            for r in rows[:requested]
         ]
-        return {"clientId": s(client_id), "total": len(sessions), "sessions": sessions}
+        return {
+            "clientId": s(client_id),
+            "sessions": sessions,
+            "returned": len(sessions),
+            "limit": requested,
+            "truncated": truncated,
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200), "clientId": s(client_id)}
 
@@ -124,19 +153,27 @@ def client_session_stats(conn: Any) -> dict:
     """[READ] Active-session counts per client (Keycloak client-session-stats).
 
     authentik has no per-client session rollup; the platform map raises a
-    teaching error that surfaces here as ``{"error": ...}``.
+    teaching ``KeyError`` that surfaces here as ``{"error": ...}``. That is a
+    platform-capability answer, not a fault — do not retry it on authentik.
+
+    The rollup is a complete list (no limit), so the envelope reports
+    ``truncated: false`` explicitly rather than leaving it to be inferred.
     """
     try:
         rows = conn.platform.rows(conn.get(conn.path("client_session_stats")))
         stats = [
             {
-                "clientId": s(pick(r, "clientId", "id", default="")),
+                "clientId": opt_s(pick(r, "clientId", "id")),
                 "activeSessions": int(num(pick(r, "active", default=0))),
                 "offlineSessions": int(num(pick(r, "offline", default=0))),
             }
             for r in rows
         ]
         stats.sort(key=lambda x: x["activeSessions"], reverse=True)
-        return {"total": len(stats), "clients": stats}
+        return {
+            "clients": stats,
+            "returned": len(stats),
+            "truncated": False,
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}

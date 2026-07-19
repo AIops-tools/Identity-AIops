@@ -28,10 +28,18 @@ def login_failure_rca(
         window_minutes: Trailing analysis window (default 60).
         max_events: Failed-login events to pull (default 500).
         target: IdP target name from config; omit for the default.
+
+    Returns "feedTruncated": true when the event feed hit max_events — every
+    count is then a lower bound; re-run with a higher max_events before
+    concluding a threshold was not reached.
     """
     conn = _get_connection(target)
-    events = ops.pull_failed_logins(conn, limit=max_events)
-    return ops.login_failure_rca(events, window_minutes=window_minutes)
+    feed = ops.pull_failed_logins(conn, limit=max_events)
+    return ops.login_failure_rca(
+        feed.get("events", []),
+        window_minutes=window_minutes,
+        feed_truncated=bool(feed.get("truncated")),
+    )
 
 
 @mcp.tool()
@@ -50,10 +58,15 @@ def stale_access_audit(
         stale_days: Idle threshold in days (default 90).
         max_users: Users to pull (default 500).
         target: IdP target name from config; omit for the default.
+
+    Returns "inputsTruncated" per input feed and "truncated" when a finding
+    list was capped at maxRows; the *Count fields are always the full totals.
     """
     conn = _get_connection(target)
-    users, logins, sessions = ops.pull_stale_inputs(conn, max_users=max_users)
-    return ops.stale_access_audit(users, logins, sessions, stale_days=stale_days)
+    users, logins, sessions, clipped = ops.pull_stale_inputs(conn, max_users=max_users)
+    return ops.stale_access_audit(
+        users, logins, sessions, stale_days=stale_days, inputs_truncated=clipped
+    )
 
 
 @mcp.tool()
@@ -70,10 +83,13 @@ def client_misconfig_audit(
     Args:
         max_clients: Clients to pull (default 200).
         target: IdP target name from config; omit for the default.
+
+    Returns "inputsTruncated": true when the client list hit max_clients — a
+    clean result over a clipped list is not evidence of a clean estate.
     """
     conn = _get_connection(target)
-    clients = ops.pull_clients(conn, max_results=max_clients)
-    return ops.client_misconfig_audit(clients)
+    clients, clipped = ops.pull_clients(conn, max_results=max_clients)
+    return ops.client_misconfig_audit(clients, inputs_truncated=clipped)
 
 
 @mcp.tool()
@@ -89,7 +105,10 @@ def mfa_coverage_analysis(
     Args:
         max_users: Users to sample (default 200 — one API call each).
         target: IdP target name from config; omit for the default.
+
+    Returns "inputsTruncated": true when the realm is larger than max_users —
+    coveragePct then describes the sample, not the realm.
     """
     conn = _get_connection(target)
-    users, creds = ops.pull_mfa_inputs(conn, max_users=max_users)
-    return ops.mfa_coverage_analysis(users, creds)
+    users, creds, clipped = ops.pull_mfa_inputs(conn, max_users=max_users)
+    return ops.mfa_coverage_analysis(users, creds, inputs_truncated=clipped)

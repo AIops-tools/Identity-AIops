@@ -21,6 +21,11 @@ def list_users(
         search: Optional username/email search string.
         max_results: Page bound (default 200).
         target: IdP target name from config; omit for the default.
+
+    Returns {"users": [...], "returned": N, "limit": L, "truncated": bool}.
+    truncated is measured (one extra user is fetched); when true, more users
+    exist — re-run with a higher max_results before drawing a realm-wide
+    conclusion. Fields the IdP did not return are null, never "".
     """
     return ops.list_users(_get_connection(target), search, max_results)
 
@@ -59,6 +64,9 @@ def user_sessions(user_id: str, target: Optional[str] = None) -> dict:
     Args:
         user_id: User id, from list_users.
         target: IdP target name from config; omit for the default.
+
+    Returns {"sessions": [...], "returned": N, "truncated": false} — the IdP
+    returns the user's whole session set, so this listing is always complete.
     """
     return ops.user_sessions(_get_connection(target), user_id)
 
@@ -72,6 +80,9 @@ def user_credentials(user_id: str, target: Optional[str] = None) -> dict:
     Args:
         user_id: User id, from list_users.
         target: IdP target name from config; omit for the default.
+
+    Returns {"credentials": [...], "returned": N, "truncated": false,
+    "secondFactors": N} — always the user's complete credential set.
     """
     return ops.user_credentials(_get_connection(target), user_id)
 
@@ -85,6 +96,9 @@ def list_groups(max_results: int = 200, target: Optional[str] = None) -> dict:
     Args:
         max_results: Page bound (default 200).
         target: IdP target name from config; omit for the default.
+
+    Returns {"groups": [...], "returned": N, "limit": L, "truncated": bool},
+    with truncated measured rather than guessed.
     """
     return ops.list_groups(_get_connection(target), max_results)
 
@@ -103,6 +117,9 @@ def group_members(
         group_id: Group id, from list_groups.
         max_results: Page bound (default 200).
         target: IdP target name from config; omit for the default.
+
+    Returns {"members": [...], "returned": N, "limit": L, "truncated": bool},
+    with truncated measured rather than guessed.
     """
     return ops.group_members(_get_connection(target), group_id, max_results)
 
@@ -112,6 +129,12 @@ def group_members(
 @tool_errors("dict")
 def user_lockout_status(user_id: str, target: Optional[str] = None) -> dict:
     """[READ] Brute-force lockout status for one user (Keycloak attack-detection).
+
+    KEYCLOAK ONLY. authentik keeps no per-user lockout register, so on an
+    authentik target this returns {"error": "Resource \'user_lockout\' is not
+    mapped for platform \'authentik\'..."}. That is a definitive answer about
+    the platform, not a fault: do not retry it and do not report the tool as
+    broken — use login_failure_rca on the failed-auth feed instead.
 
     Args:
         user_id: User id, from list_users.

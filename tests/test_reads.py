@@ -49,10 +49,12 @@ def test_list_users_keycloak_normalizes():
         ]
     })
     out = users.list_users(conn)
-    assert out["total"] == 2
+    assert out["returned"] == 2 and out["truncated"] is False
     assert out["users"][0] == {
         "id": "u1", "username": "alice", "email": "a@x.io", "enabled": True,
-        "created": "1720000000000", "lastLogin": "", "serviceAccount": False,
+        # lastLogin is null, not "" — the IdP did not report a last sign-in,
+        # which is a different fact from an empty one.
+        "created": "1720000000000", "lastLogin": None, "serviceAccount": False,
     }
     assert out["users"][1]["serviceAccount"] is True
 
@@ -67,7 +69,7 @@ def test_list_users_authentik_results_envelope_and_is_active():
         platform=AUTHENTIK,
     )
     out = users.list_users(conn)
-    assert out["total"] == 1
+    assert out["returned"] == 1 and out["truncated"] is False
     u = out["users"][0]
     assert u["id"] == "1" and u["enabled"] is False
     assert u["lastLogin"].startswith("2026-01-02")
@@ -93,7 +95,8 @@ def test_user_sessions_normalize_both_platforms():
         ]
     })
     out = users.user_sessions(kc, "u1")
-    assert out["total"] == 1 and out["sessions"][0]["ip"] == "1.2.3.4"
+    assert out["returned"] == 1 and out["truncated"] is False
+    assert out["sessions"][0]["ip"] == "1.2.3.4"
 
     ak = _Conn(
         {_p(AUTHENTIK, "user_sessions", user_id="9"): {"results": [
@@ -139,7 +142,7 @@ def test_group_members_keycloak_list_and_authentik_users_obj():
         ]
     })
     out = users.group_members(kc, "g1")
-    assert out["total"] == 1 and out["members"][0]["username"] == "alice"
+    assert out["returned"] == 1 and out["members"][0]["username"] == "alice"
 
     ak = _Conn(
         {_p(AUTHENTIK, "group_members", group_id="7"): {
@@ -149,7 +152,7 @@ def test_group_members_keycloak_list_and_authentik_users_obj():
         platform=AUTHENTIK,
     )
     out = users.group_members(ak, "7")
-    assert out["total"] == 1 and out["members"][0]["username"] == "carol"
+    assert out["returned"] == 1 and out["members"][0]["username"] == "carol"
 
 
 @pytest.mark.unit
@@ -214,7 +217,7 @@ def test_admin_events_authentik_filters_admin_actions():
         platform=AUTHENTIK,
     )
     out = events.admin_events(conn)
-    assert out["total"] == 1
+    assert out["returned"] == 1 and out["truncated"] is False
     assert out["events"][0]["operation"] == "model_updated"
     assert out["events"][0]["actor"] == "root"
 

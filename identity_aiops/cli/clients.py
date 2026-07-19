@@ -20,6 +20,7 @@ from identity_aiops.cli._common import (
     double_confirm,
     dry_run_print,
     get_connection,
+    print_result,
 )
 
 clients_app = typer.Typer(
@@ -40,7 +41,7 @@ def clients_list(
     from identity_aiops.ops import clients as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.list_clients(conn, limit)))
+    print_result(ops.list_clients(conn, limit))
 
 
 @clients_app.command("show")

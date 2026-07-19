@@ -47,7 +47,7 @@ def idp_conn(monkeypatch):
     monkeypatch.setattr(user_ops, "user_detail",
                         lambda c, u: {"id": u, "username": "bob", "enabled": False})
     monkeypatch.setattr(user_ops, "user_sessions",
-                        lambda c, u: {"total": 2, "sessions": [{"id": "s1"}, {"id": "s2"}]})
+                        lambda c, u: {"returned": 2, "sessions": [{"id": "s1"}, {"id": "s2"}]})
     monkeypatch.setattr(client_ops, "client_detail",
                         lambda c, cid: {"id": cid, "redirectUris": ["https://old/cb"]})
     monkeypatch.setattr(gov, "_get_connection", lambda target=None: conn)

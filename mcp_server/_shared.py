@@ -75,7 +75,7 @@ def tool_errors(shape: str = "dict") -> Callable:
 mcp = FastMCP(
     "identity-aiops",
     instructions=(
-        "Identity-provider operations (preview) over Keycloak and authentik: "
+        "Identity-provider operations over Keycloak and authentik: "
         "realm settings and identity providers; users with sessions, "
         "credentials, groups, and lockout status; authentication + admin "
         "events; OAuth/OIDC clients. Flagship analyses: login_failure_rca "

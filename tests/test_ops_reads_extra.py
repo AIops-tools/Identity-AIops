@@ -128,11 +128,12 @@ def test_user_detail_falls_back_to_passed_id_when_missing():
 def test_list_users_search_param_per_platform():
     kc = _Conn({_p(KEYCLOAK, "users"): []})
     users.list_users(kc, search="alice", max_results=50)
-    assert kc.last_params == {"max": 50, "search": "alice"}
+    # 51, not 50: one extra row is fetched so `truncated` can be measured.
+    assert kc.last_params == {"max": 51, "search": "alice"}
 
     ak = _Conn({_p(AUTHENTIK, "users"): {"results": []}}, platform=AUTHENTIK)
     users.list_users(ak, search="bob", max_results=25)
-    assert ak.last_params == {"page_size": 25, "search": "bob"}
+    assert ak.last_params == {"page_size": 26, "search": "bob"}
 
 
 @pytest.mark.unit
@@ -141,7 +142,7 @@ def test_list_groups_normalizes_both_platforms():
         {"id": "g1", "name": "admins", "path": "/admins"},
     ]})
     out = users.list_groups(kc)
-    assert out["total"] == 1
+    assert out["returned"] == 1 and out["truncated"] is False
     assert out["groups"][0] == {"id": "g1", "name": "admins", "path": "/admins",
                                 "members": None}
 
@@ -188,7 +189,7 @@ def test_client_sessions_keycloak_normalizes_rows():
          "start": 1, "lastAccess": 2},
     ]})
     out = clients.client_sessions(conn, "c1")
-    assert out["clientId"] == "c1" and out["total"] == 1
+    assert out["clientId"] == "c1" and out["returned"] == 1
     assert out["sessions"][0]["username"] == "alice"
     assert out["sessions"][0]["ip"] == "1.2.3.4"
 

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from identity_aiops.ops._util import as_obj, pick, s, to_bool
+from identity_aiops.ops._util import as_obj, opt_s, pick, s, to_bool
 from identity_aiops.platform import KEYCLOAK
 
 
@@ -19,7 +19,12 @@ def _is_keycloak(conn: Any) -> bool:
 
 
 def realm_info(conn: Any) -> dict:
-    """[READ] Realm / instance settings relevant to identity hygiene."""
+    """[READ] Realm / instance settings relevant to identity hygiene.
+
+    Settings the IdP did not report come back as ``None``. ``passwordPolicy``
+    is the one that must not be guessed: ``null`` means "the realm did not
+    report a policy", which is not the same claim as "no policy is set".
+    """
     try:
         raw = as_obj(conn.platform.normalise(conn.get(conn.path("realm_info"))))
         if _is_keycloak(conn):
@@ -29,9 +34,9 @@ def realm_info(conn: Any) -> dict:
                 "enabled": to_bool(pick(raw, "enabled", default=True)),
                 "bruteForceProtected": to_bool(pick(raw, "bruteForceProtected",
                                                     default=False)),
-                "passwordPolicy": s(pick(raw, "passwordPolicy", default="")),
-                "otpPolicyType": s(pick(raw, "otpPolicyType", default="")),
-                "sslRequired": s(pick(raw, "sslRequired", default="")),
+                "passwordPolicy": opt_s(pick(raw, "passwordPolicy")),
+                "otpPolicyType": opt_s(pick(raw, "otpPolicyType")),
+                "sslRequired": opt_s(pick(raw, "sslRequired")),
                 "registrationAllowed": to_bool(pick(raw, "registrationAllowed",
                                                     default=False)),
             }
@@ -40,9 +45,8 @@ def realm_info(conn: Any) -> dict:
             "platform": conn.target.platform,
             "realm": s(conn.target.realm),
             "enabled": True,
-            "version": s(pick(runtime, "authentik_version") or pick(raw, "version",
-                                                                    default="")),
-            "environment": s(pick(runtime, "environment", default="")),
+            "version": opt_s(pick(runtime, "authentik_version") or pick(raw, "version")),
+            "environment": opt_s(pick(runtime, "environment")),
             "httpIsSecure": to_bool(pick(raw, "http_is_secure", default=True)),
         }
     except Exception as exc:  # noqa: BLE001 — report as partial
@@ -50,18 +54,26 @@ def realm_info(conn: Any) -> dict:
 
 
 def list_identity_providers(conn: Any) -> dict:
-    """[READ] Federated identity providers / sources configured on the IdP."""
+    """[READ] Federated identity providers / sources configured on the IdP.
+
+    The IdP returns the complete set (no limit), so the envelope states
+    ``truncated: false`` rather than leaving the caller to assume it.
+    """
     try:
         rows = conn.platform.rows(conn.get(conn.path("identity_providers")))
         idps = [
             {
-                "id": s(pick(r, "internalId", "pk", "alias", default="")),
-                "name": s(pick(r, "alias", "slug", "name", default="")),
-                "type": s(pick(r, "providerId", "verbose_name", default="")),
+                "id": opt_s(pick(r, "internalId", "pk", "alias")),
+                "name": opt_s(pick(r, "alias", "slug", "name")),
+                "type": opt_s(pick(r, "providerId", "verbose_name")),
                 "enabled": to_bool(pick(r, "enabled", default=True)),
             }
             for r in rows
         ]
-        return {"total": len(idps), "identityProviders": idps}
+        return {
+            "identityProviders": idps,
+            "returned": len(idps),
+            "truncated": False,
+        }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}

@@ -20,6 +20,7 @@ from identity_aiops.cli._common import (
     double_confirm,
     dry_run_print,
     get_connection,
+    print_result,
 )
 
 users_app = typer.Typer(
@@ -43,7 +44,7 @@ def users_list(
     from identity_aiops.ops import users as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.list_users(conn, search, limit)))
+    print_result(ops.list_users(conn, search, limit))
 
 
 @users_app.command("show")
@@ -69,7 +70,7 @@ def users_sessions(
     from identity_aiops.ops import users as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.user_sessions(conn, user_id)))
+    print_result(ops.user_sessions(conn, user_id))
 
 
 @users_app.command("credentials")
@@ -82,7 +83,7 @@ def users_credentials(
     from identity_aiops.ops import users as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.user_credentials(conn, user_id)))
+    print_result(ops.user_credentials(conn, user_id))
 
 
 @users_app.command("disable")

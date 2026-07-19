@@ -1,68 +1,48 @@
-# Identity AIops v0.1.0 — preview
+# Release notes — identity-aiops 0.2.0
 
-Governed AI-ops for **Keycloak** and **authentik** identity providers for AI
-agents, with a built-in governance harness (audit, policy, token/runaway
-budget, undo-token recording, graduated risk tiers) and an encrypted credential
-store. Standalone — no external skill-family dependency. One MCP server spans
-both platforms: a per-target `platform` field selects the API shape, and the
-same 27 tools work on Keycloak (admin REST `/admin/realms/{realm}/...`,
-client-credentials grant with automatic refresh-on-401) and authentik (API v3
-`/api/v3/...`, Bearer token).
+Previous release: 0.1.1.
 
-> **Not affiliated with, endorsed by, or sponsored by the Keycloak project,
-> Red Hat, Authentik Security Inc., or the authentik project.** Keycloak and
-> authentik are trademarks of their respective owners.
-
-> **Preview / mock-only.** All behaviour is validated against mocked
-> Keycloak/authentik JSON responses; it has **not** been run against a live
-> IdP. The concrete REST paths are modelled from each project's public API and
-> need live verification. Both platforms are free/self-hostable, so a self-hosted
-> lab is the easiest live check — `identity-aiops doctor` is the fastest.
-
-## Highlights
-
-- **27 MCP tools** (21 read, 6 write), every one wrapped with `@governed_tool`:
-  - **Realm / system** — `identity_overview`, `realm_info`,
-    `list_identity_providers`.
-  - **Users / groups** — `list_users`, `user_detail`, `user_count`,
-    `user_sessions`, `user_credentials`, `list_groups`, `group_members`,
-    `user_lockout_status`.
-  - **Events** — `login_events`, `admin_events`.
-  - **Clients** — `list_clients`, `client_detail`, `client_sessions`,
-    `client_session_stats`.
-  - **Writes** — `disable_user`, `revoke_user_sessions`,
-    `require_password_reset` (med); `enable_user`,
-    `update_client_redirect_uris`, `rotate_client_secret` (**high**).
-- **Flagship analyses** (transparent heuristics that show their numbers):
-  - `login_failure_rca` — failed-auth events windowed by user/IP/client:
-    password spray, targeted brute-force, stale stored credential,
-    misconfigured client (rotated secret still deployed), expired-credential
-    storm, lockout storm — each with cause + action.
-  - `stale_access_audit` — enabled users idle > N days, never-logged-in
-    accounts, service accounts used interactively, orphaned sessions.
-  - `client_misconfig_audit` — wildcard/plain-http redirect URIs, public
-    clients carrying secrets, implicit flow, missing PKCE, password grant —
-    ranked per-client riskScore with evidence.
-  - `mfa_coverage_analysis` — coverage %, per-group breakdown, gap list.
-- **Governed writes** — reversible writes capture the **real fetched
-  before-state** and record an undo descriptor (`disable_user` ↔
-  `enable_user`; `require_password_reset` undoes via `clear=True`;
-  `update_client_redirect_uris` replays the prior list). Irreversible writes
-  record priorState only — `rotate_client_secret` stores a **masked**
-  fingerprint, never the value. High-risk writes take a `dry_run` preview and
-  require an approver.
-- **Encrypted secret store** — the Keycloak client secret or authentik API
-  token lives encrypted in `~/.identity-aiops/secrets.enc` (Fernet + scrypt),
-  never plaintext; legacy `IDENTITY_<TARGET>_SECRET` env fallback. TLS
-  verification defaults ON.
-- **Secure by default** — with no `rules.yaml`, high-risk writes are denied
-  unless `IDENTITY_AUDIT_APPROVED_BY` names an approver; `init` seeds the
-  dual-control rule explicitly.
-
-## Install
+## Headline: read-only mode
 
 ```bash
-uv tool install identity-aiops
-identity-aiops init
-identity-aiops doctor
+export IDENTITY_READ_ONLY=1
 ```
+
+With this set the **7 write tools are never registered** — an MCP
+client lists **22 tools instead of 29**. The writes are not hidden
+behind a flag and not merely refused on call: they are absent from the session,
+so a model cannot invoke one and cannot be argued into one. For a reviewer this
+is checkable rather than promised — connect, list the tools, and the writes are
+not there.
+
+Enforcement is two layers deep: the `@governed_tool` harness refuses every
+non-read operation (covering the CLI and in-process callers too), and the MCP
+server removes write tools from `list_tools()`. Changing entry point does not
+get around it.
+
+## BREAKING — return shapes changed
+
+This release changes payloads that callers may be parsing. Both changes exist
+to stop a result from misrepresenting itself:
+
+1. **Absent fields are now `null`, not `""`.** A missing value and an empty value
+   were previously indistinguishable, which invited consumers to invent the
+   difference. Keys are still always present — only the value may be null.
+2. **Anything with a `limit` now returns an envelope** —
+   `{"<items>": [...], "returned": N, "limit": L, "truncated": bool}`. Truncation is
+   *measured* (one extra row is fetched), never inferred from the page happening to
+   be full. Where a genuine pre-cap total is knowable it is reported as `total`;
+   where it isn't, `total` is deliberately omitted rather than echoing `returned`.
+
+## Also in this release
+
+- **`docs/VERIFICATION.md`** — what the mock suite actually guarantees, a live
+  verification checklist, and the criteria for claiming this tool verified.
+- **`skills/identity-aiops/references/agent-guardrails.md`** — for driving this tool with a
+  smaller / local model: which guardrails are now enforced for you, and a
+  ready-made system prompt for the rest.
+- Expanded operator playbooks in the skill documentation.
+- The advertised tool count now matches what an MCP client actually lists
+  (it includes `undo_list` / `undo_apply`), and a release gate keeps it honest.
+- The `(preview)` label has been dropped. It never meant unreleased; verification
+  status now lives in `docs/VERIFICATION.md` where it can be specific.

@@ -1,10 +1,16 @@
 ---
 name: identity-aiops
+slug: identity-aiops
+displayName: "Identity AIops"
+summary: "Governed Keycloak + authentik identity ops: users, events, clients, MFA, RCA. 29 tools."
+license: MIT
+homepage: https://github.com/AIops-tools/Identity-AIops
+tags: [aiops, mcp, governance, identity]
 description: >
   Use this skill whenever the user needs to operate a Keycloak or authentik identity provider — a one-shot overview, realm settings, users with sessions/credentials/groups/lockout status, authentication and admin events, OAuth/OIDC clients, four flagship RCAs (login-failure/lockout-storm, stale access, client misconfiguration, MFA coverage), and governed writes (disable/enable a user, revoke sessions, require a password reset, replace redirect URIs, rotate a client secret).
   Always use this skill for "Keycloak", "authentik", "realm", "SSO users", "login failures", "brute force logins", "locked out users", "stale accounts", "service account misuse", "redirect URI", "PKCE", "implicit flow", "client secret rotation", "MFA coverage", "who has no 2FA" when the context is a Keycloak/authentik IdP.
   Do NOT use when the target is something other than a Keycloak/authentik identity provider (a hypervisor, storage appliance, backup product, container-orchestration cluster, firewall, database, or OT/industrial equipment) — route those to the appropriate other AIops-tools skill. Cloud IdPs (Okta, Entra ID, Auth0) are out of scope.
-  Preview — governed identity operations with a built-in governance harness (audit, policy, token budget, undo, risk-tiers). Mock-validated only, not run against a live IdP; both Keycloak and authentik are free/self-hostable, so a self-hosted lab is the easiest live check.
+  Governed identity operations with a built-in governance harness (audit, policy, token budget, undo, risk-tiers).
 installer:
   kind: uv
   package: identity-aiops
@@ -13,21 +19,21 @@ allowed-tools:
   - Bash
 metadata: {"openclaw":{"requires":{"env":["IDENTITY_AIOPS_CONFIG"],"bins":["identity-aiops"],"config":["~/.identity-aiops/config.yaml","~/.identity-aiops/secrets.enc"]},"optional":{"env":["IDENTITY_AIOPS_MASTER_PASSWORD"]},"primaryEnv":"IDENTITY_AIOPS_CONFIG","homepage":"https://github.com/AIops-tools/Identity-AIops","emoji":"🔐","os":["macos","linux"]}}
 compatibility: >
-  Standalone, self-governed identity-provider operations across Keycloak (admin REST API /admin/realms/{realm}/..., OAuth2 client-credentials grant against the realm token endpoint with automatic refresh-on-401) and authentik (API v3 /api/v3/..., long-lived API token as a Bearer header) — preview. Each target in the config names its own platform, and a name-keyed platform registry selects the API shape, so the same tools work on both and one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
+  Standalone, self-governed identity-provider operations across Keycloak (admin REST API /admin/realms/{realm}/..., OAuth2 client-credentials grant against the realm token endpoint with automatic refresh-on-401) and authentik (API v3 /api/v3/..., long-lived API token as a Bearer header). Each target in the config names its own platform, and a name-keyed platform registry selects the API shape, so the same tools work on both and one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.identity-aiops/ (relocatable via IDENTITY_AIOPS_HOME).
   Credentials: the Keycloak confidential client's client secret or the authentik API token is stored ENCRYPTED in ~/.identity-aiops/secrets.enc (Fernet/AES-128 + scrypt-derived key) — never plaintext on disk. Run 'identity-aiops init' to onboard (it asks for the platform, base URL, and — Keycloak — realm + client_id), or 'identity-aiops secret set <target>' to add one. The store is unlocked by a master password from IDENTITY_AIOPS_MASTER_PASSWORD (non-interactive/MCP/CI) or an interactive prompt (CLI on a TTY). A legacy plaintext env var IDENTITY_<TARGET_NAME_UPPER>_SECRET is still honoured as a fallback with a deprecation warning (migrate with 'identity-aiops secret migrate'). Secrets are held only in memory, never logged or echoed; rotate_client_secret returns and records masked fingerprints only.
   State-changing operations pass through the @governed_tool decorator (pre-check + budget guard + audit + risk-tier gate). enable_user, update_client_redirect_uris, and rotate_client_secret are risk=high with dry_run + an approver gate; revoke_user_sessions and rotate_client_secret are irreversible (priorState only). Reversible writes (disable_user/enable_user, require_password_reset, update_client_redirect_uris) capture the real fetched before-state and record an inverse undo descriptor.
   Webhooks: none — no outbound network calls beyond the configured Keycloak / authentik REST API.
   SSL: verify_ssl defaults to ON; disable only for self-signed lab certs.
   Transitive dependencies: httpx (HTTP client) and the MCP SDK. No post-install scripts or background services.
-  PREVIEW: mock-validated only — not run against a live IdP. Both Keycloak and authentik are free/self-hostable, so a self-hosted lab is the easiest live check.
+  Verification status: mock-validated; no recorded end-to-end run against a live IdP yet, and the modelled REST paths are the largest verification debt. Both Keycloak and authentik are free/self-hostable (each runs from a single container), so a lab is the cheapest live check. See docs/VERIFICATION.md.
 ---
 
-# Identity AIops (preview)
+# Identity AIops
 
 > **Disclaimer**: Community-maintained open-source project, **not affiliated with, endorsed by, or sponsored by the Keycloak project, Red Hat, Authentik Security Inc., or the authentik project.** Keycloak and authentik are trademarks of their respective owners. Source at [github.com/AIops-tools/Identity-AIops](https://github.com/AIops-tools/Identity-AIops) under the MIT license.
 
-Governed identity operations — **27 MCP tools** across **Keycloak** (admin REST
+Governed identity operations — **29 MCP tools** across **Keycloak** (admin REST
 `/admin/realms/{realm}/...`) and **authentik** (API v3 `/api/v3/...`), every one
 wrapped with the bundled `@governed_tool` harness: a local unified audit log
 under `~/.identity-aiops/`, policy engine, token/runaway budget guard,
@@ -38,9 +44,9 @@ token is stored **encrypted** (`~/.identity-aiops/secrets.enc`, Fernet +
 scrypt) — never plaintext on disk.
 
 > **Standalone**: the governance harness is bundled in the package
-> (`identity_aiops.governance`) — no external skill-family dependency.
-> **Preview / mock-only**: not run against a live IdP; both platforms are
-> free/self-hostable, so a self-hosted lab is the easiest live check.
+> (`identity_aiops.governance`) — no external skill-family dependency. Both
+> platforms are free/self-hostable, so a self-hosted lab is the cheapest live
+> check; verification status and the checklist are in `docs/VERIFICATION.md`.
 
 ## What This Skill Does
 
@@ -53,6 +59,7 @@ scrypt) — never plaintext on disk.
 | **Flagship analyses** | login_failure_rca, stale_access_audit, client_misconfig_audit, mfa_coverage_analysis | 4 | read |
 | **Writes** | disable_user, revoke_user_sessions, require_password_reset | 3 | write (med) |
 | **Writes** | enable_user, update_client_redirect_uris, rotate_client_secret | 3 | write (**high**) |
+| **Undo** | undo_list, undo_apply | 2 | read + replay |
 
 The four flagship analyses are transparent heuristics that report their numbers,
 never a black-box verdict: `login_failure_rca` windows the failed-auth feed by
@@ -100,38 +107,112 @@ OT/industrial work to the appropriate other AIops-tools skill. Cloud IdPs
 
 ## Common Workflows
 
-### Login-failure / lockout storm
+Each recipe starts from a read or one of the four RCAs and ends in a governed
+write. The **RCAs are MCP tools** (`login_failure_rca`, `stale_access_audit`,
+`client_misconfig_audit`, `mfa_coverage_analysis`) — call them through the MCP
+server; the CLI covers the reads and the writes. Every CLI write accepts
+`--dry-run` and otherwise double-confirms.
 
-1. `identity_overview` → how big is the failed-login feed right now?
-2. `login_failure_rca` → findings ranked with numbers: spray from one IP,
-   targeted brute-force on one account, a client failing with credential
-   errors (rotated secret not deployed), an expiry storm, or a lockout storm
-3. Contain: `disable_user` + `revoke_user_sessions` (governed, undo/priorState),
-   check `user_lockout_status` before unlocking anyone
+### 1. "We're being brute-forced — contain it"
 
-### Access re-certification
+1. `identity-aiops overview` → how big is the failed-login feed right now, and
+   is this one account or the whole realm?
+2. MCP `login_failure_rca` → findings ranked with numbers, separating password
+   **spray** from one IP, **targeted** brute-force on one account, a client
+   failing with credential errors (a rotated secret not deployed), an
+   expired-credential storm, and a lockout storm.
+3. `identity-aiops events --type LOGIN_ERROR --user <username> -n 200` → the
+   raw failures behind the finding (authentik: `--type login_failed`).
+4. `identity-aiops users show <user-id>` and `identity-aiops users sessions
+   <user-id>` → is the account already compromised, i.e. did any attempt
+   actually succeed?
+5. Contain: `identity-aiops users disable <user-id> --dry-run`, then for real
+   (reversible — the fetched before-state is captured and an `enable_user`
+   inverse recorded).
+6. `identity-aiops users revoke-sessions <user-id>` → kill live sessions.
+   **Irreversible** (priorState only) — disabling alone does not end sessions
+   already issued, so this step is what actually stops the attacker.
+7. `identity-aiops undo list` → confirm the disable is reversible before you
+   hand off.
 
-1. `stale_access_audit --stale-days 90` → idle users (with day counts),
-   never-logged-in accounts, interactive service accounts, orphaned sessions
-2. Confirm with owners, then `disable_user` (reversible, undo-recorded) and
-   `revoke_user_sessions` for the orphans
+**Failure branch**: if the RCA classifies it as a **misconfigured client**
+rather than an attack (mass credential errors from one client id), do not
+disable users — you would lock out legitimate people while the real fault is a
+rotated secret that was never deployed. Go to recipe 3. If you disabled the
+wrong account, `identity-aiops users enable <user-id>` is **high** risk and
+needs `IDENTITY_AUDIT_APPROVED_BY` + `IDENTITY_AUDIT_RATIONALE`, deliberately —
+re-enabling reverses containment.
 
-### OAuth client hardening
+### 2. "Quarterly access re-certification"
 
-1. `client_misconfig_audit` → per-client riskScore with evidence
-   (wildcard/http redirect URIs, public client with secret, implicit flow,
-   missing PKCE, password grant)
-2. `update_client_redirect_uris <id> --uri https://... --dry-run` → preview,
-   then re-run confirmed (high risk: set `IDENTITY_AUDIT_APPROVED_BY` +
-   `IDENTITY_AUDIT_RATIONALE`); the prior list is captured for undo
-3. If a secret leaked: `rotate_client_secret` (masked priorState) and update
-   the deployments
+1. MCP `stale_access_audit` (e.g. `stale_days=90`) → dormant users with day
+   counts, never-logged-in accounts, service accounts being used
+   interactively, and orphaned sessions.
+2. `identity-aiops users list --search <name>` / `identity-aiops users show
+   <user-id>` → confirm each candidate is genuinely the account you think.
+3. `identity-aiops users sessions <user-id>` → check for a live session before
+   you touch a "dormant" account.
+4. Confirm with the account owner or its manager. Then, per account:
+   `identity-aiops users disable <user-id>` (reversible, undo-recorded).
+5. `identity-aiops users revoke-sessions <user-id>` for the orphaned sessions
+   the audit found (irreversible).
+6. Re-run `stale_access_audit` to confirm the list shrank as expected.
 
-### MFA rollout tracking
+**Failure branch**: an **interactive service account** finding is not a
+disable candidate — disabling it takes down whatever integration depends on
+it. Trace the client first (`identity-aiops clients show <client-id>`,
+`identity-aiops clients list`) and fix the integration to stop using
+interactive login. If a disable breaks something unexpectedly,
+`identity-aiops undo apply <id>` replays the captured prior state.
 
-1. `mfa_coverage_analysis` → coverage %, worst groups first, gap list
-2. `user_credentials <id>` → what a specific user has configured
-3. `require_password_reset` where step-up is part of the rollout
+### 3. "Harden the OAuth clients before the audit"
+
+1. MCP `client_misconfig_audit` → per-client `riskScore` with the evidence
+   behind it: wildcard or plain-`http` redirect URIs, a public client holding
+   a secret, implicit flow enabled, missing PKCE, password grant allowed.
+2. `identity-aiops clients show <client-id>` → the full current client
+   configuration, so you replace the right values.
+3. `identity-aiops clients set-redirect-uris <client-id> --uri
+   https://app.example.com/callback --dry-run` → note that `--uri` is repeated
+   and supplies the **FULL new list**, replacing what is there.
+4. Re-run without `--dry-run`: **high** risk, double confirm, requires
+   `IDENTITY_AUDIT_APPROVED_BY` + `IDENTITY_AUDIT_RATIONALE`. The prior URI
+   list is captured, so undo replays it exactly.
+5. If a secret leaked: `identity-aiops clients rotate-secret <client-id>`
+   (**high** risk, **irreversible**, masked priorState) — then deploy the new
+   secret everywhere that client is used.
+6. Re-run `client_misconfig_audit` to confirm the score dropped.
+
+**Failure branch**: rotating a secret before the deployments are ready is how
+you cause recipe 1's "misconfigured client" storm — every service using the old
+secret starts failing authentication immediately, and rotation cannot be
+undone. Stage the deployment first. If a redirect-URI replacement breaks a
+login flow, `identity-aiops undo apply <id>` restores the exact prior list;
+this is why the URI change is reversible and the rotation is not.
+
+### 4. "Show me who still has no second factor"
+
+1. MCP `mfa_coverage_analysis` → coverage percentage, the worst groups first,
+   and the per-user gap list.
+2. `identity-aiops users credentials <user-id>` → what a specific user
+   actually has configured, so you distinguish "no MFA" from "an enrolled
+   factor the analysis could not see".
+3. `identity-aiops overview` and realm settings → confirm the realm's
+   brute-force protection and OTP policy actually require what you think they
+   require.
+4. Where a forced re-enrolment is part of the rollout:
+   `identity-aiops users require-reset <user-id> --dry-run`, then for real
+   (reversible — undo clears the pending requirement).
+5. `identity-aiops undo list` → confirm each reset flag can be cleared if the
+   rollout stalls.
+
+**Failure branch**: if a user is blocked out by the reset requirement (no
+working recovery path, or they cannot complete enrolment),
+`identity-aiops users require-reset <user-id> --clear` removes the pending
+requirement, and `identity-aiops undo apply <id>` does the same from the
+recorded token. Do not chase a 100% coverage number by forcing resets on
+service accounts — they have no interactive user to complete the flow, and the
+`stale_access_audit` in recipe 2 is the right tool for those.
 
 ## Governance & Safety
 
@@ -154,3 +235,6 @@ OT/industrial work to the appropriate other AIops-tools skill. Cloud IdPs
 - `references/capabilities.md` — full tool + platform + API-path reference
 - `references/cli-reference.md` — CLI command reference
 - `references/setup-guide.md` — onboarding, credentials, and connectivity
+- `references/agent-guardrails.md` — running with a smaller / local model:
+  read-only mode (`IDENTITY_READ_ONLY`), the truncation and null-field
+  contracts, the Keycloak-vs-authentik tool asymmetry, and a system prompt

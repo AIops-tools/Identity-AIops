@@ -1,6 +1,6 @@
 # identity-aiops setup & security guide
 
-> Preview / mock-only — not yet validated against a live IdP. Both **Keycloak**
+> Verification status: mock-validated; no recorded live IdP run yet. Both **Keycloak**
 > and **authentik** are free/self-hostable (each runs from a single container), so a lab is
 > the easiest live check. The modelled REST paths are the largest verification
 > debt.

@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
-import json
 from typing import Annotated
 
 import typer
 
-from identity_aiops.cli._common import TargetOption, cli_errors, console, get_connection
+from identity_aiops.cli._common import (
+    TargetOption,
+    cli_errors,
+    get_connection,
+    print_result,
+)
 
 
 @cli_errors
@@ -27,4 +31,4 @@ def events_cmd(
     from identity_aiops.ops import events as ops
 
     conn, _ = get_connection(target)
-    console.print_json(json.dumps(ops.login_events(conn, event_type, user, limit)))
+    print_result(ops.login_events(conn, event_type, user, limit))
