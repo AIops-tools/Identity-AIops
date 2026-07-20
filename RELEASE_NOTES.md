@@ -1,48 +1,22 @@
-# Release notes — identity-aiops 0.2.0
+# Release notes — identity-aiops 0.2.1
 
-Previous release: 0.1.1.
+Previous release: 0.2.0.
 
-## Headline: read-only mode
+## Live-verified: Keycloak
 
-```bash
-export IDENTITY_READ_ONLY=1
-```
+No behaviour changes. This release records the first end-to-end run against a real
+**Keycloak 26.0**:
 
-With this set the **7 write tools are never registered** — an MCP
-client lists **22 tools instead of 29**. The writes are not hidden
-behind a flag and not merely refused on call: they are absent from the session,
-so a model cannot invoke one and cannot be argued into one. For a reviewer this
-is checkable rather than promised — connect, list the tools, and the writes are
-not there.
+- `doctor`, the reads, and all four analyses (`login_failure_rca`,
+  `stale_access_audit`, `client_misconfig_audit`, `mfa_coverage_analysis`).
+- Governance loop: `disable_user` really disabled the account on the live server,
+  captured `{"enabled": true}` as `priorState`, and `undo_apply` re-enabled it —
+  all three calls audited under a named approver.
+- Confirmed the auth model: this tool authenticates as a **confidential client via
+  `client_credentials`** (service account), not a username/password login. A user
+  credential fails with a 401 that correctly names the client_id/secret as the thing
+  to check.
 
-Enforcement is two layers deep: the `@governed_tool` harness refuses every
-non-read operation (covering the CLI and in-process callers too), and the MCP
-server removes write tools from `list_tools()`. Changing entry point does not
-get around it.
-
-## BREAKING — return shapes changed
-
-This release changes payloads that callers may be parsing. Both changes exist
-to stop a result from misrepresenting itself:
-
-1. **Absent fields are now `null`, not `""`.** A missing value and an empty value
-   were previously indistinguishable, which invited consumers to invent the
-   difference. Keys are still always present — only the value may be null.
-2. **Anything with a `limit` now returns an envelope** —
-   `{"<items>": [...], "returned": N, "limit": L, "truncated": bool}`. Truncation is
-   *measured* (one extra row is fetched), never inferred from the page happening to
-   be full. Where a genuine pre-cap total is knowable it is reported as `total`;
-   where it isn't, `total` is deliberately omitted rather than echoing `returned`.
-
-## Also in this release
-
-- **`docs/VERIFICATION.md`** — what the mock suite actually guarantees, a live
-  verification checklist, and the criteria for claiming this tool verified.
-- **`skills/identity-aiops/references/agent-guardrails.md`** — for driving this tool with a
-  smaller / local model: which guardrails are now enforced for you, and a
-  ready-made system prompt for the rest.
-- Expanded operator playbooks in the skill documentation.
-- The advertised tool count now matches what an MCP client actually lists
-  (it includes `undo_list` / `undo_apply`), and a release gate keeps it honest.
-- The `(preview)` label has been dropped. It never meant unreleased; verification
-  status now lives in `docs/VERIFICATION.md` where it can be specific.
+See [docs/VERIFICATION.md](docs/VERIFICATION.md) — **Authentik remains unverified**,
+and the lab realm was too small for the analyses to be verified as *classifying
+correctly at scale* (only as executing correctly).
