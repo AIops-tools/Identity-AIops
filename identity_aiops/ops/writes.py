@@ -20,6 +20,19 @@ Two writes are irreversible and record ``priorState`` only:
   * ``rotate_client_secret`` — the old secret is gone; a **masked** fingerprint
     of it is recorded (never the value).
 
+Two writes additionally refuse to act on **this connection's own identity**
+(:class:`SelfLockout`), because doing so would destroy the tool's ability to
+reverse — or even to continue — its own work:
+
+  * ``disable_user`` — disabling the account whose token is in flight makes the
+    undo (``enable_user``) fail 403.
+  * ``rotate_client_secret`` — re-keying the client this tool authenticates as
+    invalidates the stored secret instantly, and this write has no undo at all.
+
+Both guards are exact (only the tool's own identity is refused) and **fail
+open**: when the identity cannot be determined the call proceeds, because an
+unknown identity must never be treated as "it is me".
+
 Each function returns a plain descriptor; the MCP layer adds dry-run + the
 governance harness (risk tier + audit + undo).
 """
@@ -72,6 +85,25 @@ class SelfLockout(ValueError):  # noqa: N818 — teaching error, reads as a stat
     """Refused: the operation would disable the identity this tool authenticates as."""
 
 
+def guard_disable_user(conn: Any, user_id: str) -> None:
+    """Raise the :class:`SelfLockout` ``disable_user`` would raise, without writing.
+
+    Called by ``disable_user`` itself *and* by the MCP wrapper ahead of its
+    ``dry_run`` early return, so a preview of a self-disable reports the refusal
+    instead of a green ``wouldDisable``. Both paths run this one function, so
+    the preview and the real call can never disagree.
+    """
+    self_id = conn.self_user_id() if hasattr(conn, "self_user_id") else None
+    if self_id is None or str(user_id) != str(self_id):
+        return
+    raise SelfLockout(
+        f"Refusing to disable user '{user_id}': that is the account this tool "
+        f"authenticates as. Disabling it revokes the credential immediately, so "
+        f"the undo (enable_user) would fail with 403 and you would be locked out. "
+        f"Use a different administrative credential if you really must disable it."
+    )
+
+
 def disable_user(conn: Any, user_id: str) -> dict:
     """[WRITE][med] Disable a user (blocks sign-in), capturing prior state.
 
@@ -87,14 +119,7 @@ def disable_user(conn: Any, user_id: str) -> dict:
     identity cannot be determined, the call proceeds (unknown is never treated
     as "not me" in the other direction either — it simply cannot guard).
     """
-    self_id = conn.self_user_id() if hasattr(conn, "self_user_id") else None
-    if self_id is not None and str(user_id) == str(self_id):
-        raise SelfLockout(
-            f"Refusing to disable user '{user_id}': that is the account this tool "
-            f"authenticates as. Disabling it revokes the credential immediately, so "
-            f"the undo (enable_user) would fail with 403 and you would be locked out. "
-            f"Use a different administrative credential if you really must disable it."
-        )
+    guard_disable_user(conn, user_id)
     return _set_user_enabled(conn, user_id, enable=False)
 
 
@@ -220,6 +245,49 @@ def _mask_secret(secret: str) -> str:
     return f"{secret[:4]}…{secret[-2:]} ({len(secret)} chars)"
 
 
+def guard_rotate_client_secret(conn: Any, client_id: str) -> None:
+    """Refuse to re-key the client this connection authenticates as.
+
+    Called by ``rotate_client_secret`` itself *and* by the MCP wrapper ahead of
+    its ``dry_run`` early return, so a preview of a self-rotation reports the
+    refusal instead of a green ``wouldRotateSecret``. Both paths run this one
+    function, so the preview and the real call can never disagree — the dry-run
+    path pays one extra GET (``client_detail``) for that guarantee.
+
+    Keycloak auth is ``client_credentials`` using the target's ``username``
+    (which holds the client_id) plus the stored secret. Rotating that client's
+    secret invalidates the stored credential the instant it succeeds, and
+    ``rotate_client_secret`` records **no undo at all** — so every later token
+    fetch fails until an operator re-keys the tool by hand. That is strictly
+    worse than the ``disable_user`` lockout, which at least had an undo to fail.
+
+    Exact and fail-open: only a confirmed match on the tool's own client_id is
+    refused. If the client cannot be read (``{"error": ...}``) or carries no
+    ``clientId``, the identity is *unknown* and the call proceeds — a false
+    positive here would block legitimate rotation of every other client.
+    """
+    own_client_id = str(getattr(conn.target, "username", "") or "")
+    if not own_client_id:
+        return  # no client_id configured — nothing to compare against
+    detail = client_ops.client_detail(conn, client_id)
+    if "error" in detail:
+        return  # could not read the client — unknown, never assumed to be self
+    target_client_id = detail.get("clientId")
+    if not target_client_id:
+        return  # client carries no clientId — unknown, same reasoning
+    if str(target_client_id) != own_client_id:
+        return
+    # Kept under the MCP layer's _safe_error truncation (300 chars) so the route
+    # back — the part an agent acts on — is never the part that gets cut off.
+    raise SelfLockout(
+        f"Refusing to rotate client '{target_client_id}': that is the client this tool "
+        f"authenticates as. Rotation invalidates the stored secret at once and this "
+        f"write has no undo, so every later call fails until it is re-keyed by hand. "
+        f"Rotate it in the Keycloak admin console, then 'identity-aiops secret set "
+        f"{getattr(conn.target, 'name', '')}'."
+    )
+
+
 def rotate_client_secret(conn: Any, client_id: str) -> dict:
     """[WRITE][high] Rotate a client's secret. IRREVERSIBLE — the old secret
     is invalidated; only a **masked** fingerprint of it is recorded, never the
@@ -227,12 +295,19 @@ def rotate_client_secret(conn: Any, client_id: str) -> dict:
     Keycloak admin console (or client-secret endpoint) over a trusted channel
     and update every deployment that uses this client.
 
+    **Refuses to rotate the secret of the client this connection authenticates
+    as.** That credential is what every subsequent call depends on, and this
+    write has no undo — the lockout would be permanent until a human re-keys the
+    tool. If the client's identity cannot be determined, the call proceeds
+    (unknown is never treated as "it is me").
+
     authentik has no rotation endpoint — edit the OAuth2 provider instead.
     """
     _require_keycloak(
         conn, "rotate_client_secret",
         "For authentik, set a new client secret on the OAuth2 provider.",
     )
+    guard_rotate_client_secret(conn, client_id)
     prior_raw = as_obj(conn.get(conn.path("client_secret", client_id=client_id)))
     prior_masked = _mask_secret(str(prior_raw.get("value") or ""))
     new_raw = as_obj(conn.post(conn.path("client_secret", client_id=client_id)))

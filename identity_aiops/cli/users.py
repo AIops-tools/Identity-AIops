@@ -18,6 +18,7 @@ from identity_aiops.cli._common import (
     cli_errors,
     console,
     double_confirm,
+    dry_run_preview,
     dry_run_print,
     get_connection,
     print_result,
@@ -97,8 +98,11 @@ def users_disable(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="disable_user", api_call="set user enabled=false",
-                      parameters={"user_id": user_id})
+        # Through the governed call: disable_user is self-lockout guarded, so a
+        # preview must report a refusal rather than a green banner.
+        dry_run_preview(gov.disable_user(user_id=user_id, dry_run=True, target=target),
+                        operation="disable_user", api_call="set user enabled=false",
+                        parameters={"user_id": user_id})
         return
     double_confirm("disable user", user_id)
     console.print_json(json.dumps(gov.disable_user(user_id=user_id, target=target)))

@@ -100,12 +100,19 @@ def disable_user(
     sessions survive — pair with revoke_user_sessions. Pass dry_run=True to
     preview.
 
+    Refuses to disable the account this tool authenticates as — including under
+    dry_run, which must report a refusal rather than preview a call that will be
+    refused.
+
     Args:
         user_id: User id (Keycloak UUID / authentik pk), from list_users.
         dry_run: If True, preview without changing.
         target: IdP target name from config; omit for the default.
     """
     conn = _get_connection(target)
+    # Ahead of the dry_run return: a preview whose real call would be refused
+    # must say so, or the caller reads the refusal as transient and retries.
+    ops.guard_disable_user(conn, user_id)
     if dry_run:
         return {"dryRun": True, "wouldDisable": {"userId": user_id}}
     return ops.disable_user(conn, user_id)
@@ -235,6 +242,12 @@ def rotate_client_secret(
     secret is invalidated; only masked fingerprints are recorded/returned,
     never the value. Requires an approver (IDENTITY_AUDIT_APPROVED_BY).
 
+    Refuses to rotate the client this tool authenticates as: that would revoke
+    its own credential with no undo to fall back on — including under dry_run,
+    which must report a refusal rather than preview a call that will be refused.
+    Rotate that one from the admin console and re-store it with
+    'identity-aiops secret set'.
+
     Every deployment using this client must be updated with the new secret
     (fetch it from the admin console over a trusted channel). Pass
     dry_run=True to preview.
@@ -245,6 +258,9 @@ def rotate_client_secret(
         target: IdP target name from config; omit for the default.
     """
     conn = _get_connection(target)
+    # Ahead of the dry_run return: costs one client_detail GET on the preview
+    # path, and in exchange the preview can never contradict the real call.
+    ops.guard_rotate_client_secret(conn, client_id)
     if dry_run:
         return {"dryRun": True, "wouldRotateSecret": {"clientId": client_id}}
     return ops.rotate_client_secret(conn, client_id)

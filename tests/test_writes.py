@@ -380,8 +380,16 @@ def test_dry_run_previews_do_not_mutate(monkeypatch):
     assert t.require_password_reset(user_id="u1", dry_run=True)["dryRun"] is True
     assert t.update_client_redirect_uris(
         client_id="c1", redirect_uris=["https://a/cb"], dry_run=True)["dryRun"] is True
-    assert t.rotate_client_secret(client_id="c1", dry_run=True)["dryRun"] is True
+    # Previews with no self-lockout guard to evaluate touch nothing at all.
     conn.get.assert_not_called()
+
+    # rotate_client_secret IS guarded, so its preview pays one client_detail GET
+    # to find out whether the real call would be refused. A preview that costs a
+    # read and tells the truth beats a free one that reports a green
+    # 'wouldRotateSecret' for a call that is about to be refused.
+    assert t.rotate_client_secret(client_id="c1", dry_run=True)["dryRun"] is True
+
+    # No preview, guarded or not, may ever mutate.
     conn.put.assert_not_called()
     conn.post.assert_not_called()
     conn.patch.assert_not_called()

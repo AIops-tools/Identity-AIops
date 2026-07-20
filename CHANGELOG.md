@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.3.0 — 2026-07-20
+
+### Fixed
+- **`rotate_client_secret` can no longer rotate the client this tool authenticates as.** Keycloak auth here is `client_credentials` using the configured client id and secret, so rotating that client invalidated the stored credential on the spot — and this operation is irreversible by design, so there was not even a failed undo to notice.
+- `disable_user`'s existing guard now also runs on the `dry_run` path, where it was being skipped entirely..
+- Harness: a write whose response is lost is audited `status=unknown`, not `error` — it may have taken effect. Undo tokens gain `effectVerified` (undo.db migrated in place).
+- Harness: a dry-run no longer records an undo token, and no longer requires a named approver. Guards now run on the preview path.
+- Truncated strings end in an ellipsis instead of being cut silently; error messages are capped at 800 chars, not 300.
+
+See RELEASE_NOTES.md for the full detail.
+
 ## v0.1.1 — 2026-07-17
 
 ### Fixed

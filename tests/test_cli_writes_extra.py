@@ -107,7 +107,13 @@ def test_cli_clients_set_redirect_uris_confirmed_is_audited(gov_home, idp_conn):
 
 
 @pytest.mark.unit
-def test_cli_write_dry_runs_make_no_call_and_no_audit(gov_home, idp_conn):
+def test_cli_unguarded_write_dry_runs_mutate_nothing(gov_home, idp_conn):
+    """The invariant is: a dry_run MAY read, it must never WRITE.
+
+    None of these writes carries a self-lockout guard, so their previews are
+    still the plain local banner and never reach the governed twin (hence no
+    audit row). The guarded previews are covered by the test below.
+    """
     from identity_aiops.cli import app
 
     for argv in (
@@ -115,11 +121,27 @@ def test_cli_write_dry_runs_make_no_call_and_no_audit(gov_home, idp_conn):
         ["users", "revoke-sessions", "u1", "--dry-run"],
         ["users", "require-reset", "u1", "--dry-run"],
         ["clients", "set-redirect-uris", "c1", "--uri", "https://a/cb", "--dry-run"],
-        ["clients", "rotate-secret", "c1", "--dry-run"],
     ):
         r = runner.invoke(app, argv)
         assert r.exit_code == 0, r.output
         assert "DRY-RUN" in r.output
     idp_conn.put.assert_not_called()
     idp_conn.post.assert_not_called()
-    assert not (gov_home / "audit.db").exists()
+    idp_conn.patch.assert_not_called()
+    idp_conn.delete.assert_not_called()
+
+
+@pytest.mark.unit
+def test_cli_rotate_secret_dry_run_mutates_nothing_but_is_audited(gov_home, idp_conn):
+    """rotate_client_secret IS guarded, so its preview routes through the
+    governed twin: it reads to evaluate the guard, writes nothing, and audits."""
+    from identity_aiops.cli import app
+
+    r = runner.invoke(app, ["clients", "rotate-secret", "c1", "--dry-run"])
+
+    assert r.exit_code == 0, r.output
+    assert "DRY-RUN" in r.output
+    idp_conn.put.assert_not_called()
+    idp_conn.post.assert_not_called()
+    idp_conn.delete.assert_not_called()
+    assert _audit_tools(gov_home / "audit.db") == ["rotate_client_secret"]

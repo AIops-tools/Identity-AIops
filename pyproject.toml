@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "identity-aiops"
-version = "0.2.2"
+version = "0.3.0"
 description = "Governed AI-ops for Keycloak + authentik identity providers: users, sessions, auth events, OAuth clients, flagship RCA analyses (login-failure, stale access, client misconfig, MFA coverage), and governed identity writes (disable/enable, session revoke, reset, redirect URIs, secret rotation) with a built-in governance harness (audit, budget, undo, risk tiers)"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-authors = [{ name = "wei", email = "zhouwei008@gmail.com" }]
+authors = [{ name = "Wei Zhou", email = "zhouwei008@gmail.com" }]
 dependencies = [
     "httpx>=0.27,<1.0",
     "typer>=0.12,<1.0",

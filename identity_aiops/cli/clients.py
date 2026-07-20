@@ -18,6 +18,7 @@ from identity_aiops.cli._common import (
     cli_errors,
     console,
     double_confirm,
+    dry_run_preview,
     dry_run_print,
     get_connection,
     print_result,
@@ -93,8 +94,12 @@ def clients_rotate_secret(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="rotate_client_secret", api_call="rotate client secret",
-                      parameters={"client_id": client_id})
+        # Through the governed call: rotate_client_secret is self-lockout guarded,
+        # so a preview must report a refusal rather than a green banner.
+        dry_run_preview(
+            gov.rotate_client_secret(client_id=client_id, dry_run=True, target=target),
+            operation="rotate_client_secret", api_call="rotate client secret",
+            parameters={"client_id": client_id})
         return
     double_confirm("rotate the secret of client", client_id)
     console.print_json(json.dumps(gov.rotate_client_secret(client_id=client_id, target=target)))
