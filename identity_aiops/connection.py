@@ -27,6 +27,8 @@ than leaking raw tracebacks. The httpx client is injectable for tests: pass
 from __future__ import annotations
 
 import atexit
+import base64
+import json
 import logging
 import weakref
 from typing import Any
@@ -185,6 +187,37 @@ class IdentityConnection:
                 path=token_path,
             )
         return str(token)
+
+    def self_user_id(self) -> str | None:
+        """Return the user id this connection's own credential belongs to.
+
+        Used to refuse operations that would lock the tool out of its own undo —
+        disabling the account whose token you are holding revokes your ability to
+        re-enable it. Verified the hard way against a live authentik: the disable
+        succeeded, and the undo then failed 403.
+
+        Keycloak authenticates as a service account via client_credentials, so the
+        identity is the access token's ``sub`` claim — no extra request. authentik
+        exposes ``/core/users/me/``. Returns ``None`` when it cannot be determined;
+        callers must treat that as "unknown", never as "not me".
+        """
+        platform = self._target.platform_obj
+        try:
+            if platform.name == "authentik":
+                body = self.get(platform.path("self_user"))
+                if isinstance(body, dict):
+                    user = body.get("user") if isinstance(body.get("user"), dict) else body
+                    pk = user.get("pk") if isinstance(user, dict) else None
+                    return str(pk) if pk is not None else None
+                return None
+            token = self._ensure_access_token()
+            payload = token.split(".")[1]
+            payload += "=" * (-len(payload) % 4)
+            claims = json.loads(base64.urlsafe_b64decode(payload))
+            sub = claims.get("sub")
+            return str(sub) if sub else None
+        except Exception:  # noqa: BLE001 — unknown identity, never a false "not me"
+            return None
 
     def _ensure_access_token(self) -> str:
         if self._access_token is None:

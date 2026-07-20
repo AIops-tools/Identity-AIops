@@ -68,6 +68,10 @@ def _set_user_enabled(conn: Any, user_id: str, enable: bool) -> dict:
     }
 
 
+class SelfLockout(ValueError):  # noqa: N818 — teaching error, reads as a statement
+    """Refused: the operation would disable the identity this tool authenticates as."""
+
+
 def disable_user(conn: Any, user_id: str) -> dict:
     """[WRITE][med] Disable a user (blocks sign-in), capturing prior state.
 
@@ -75,7 +79,22 @@ def disable_user(conn: Any, user_id: str) -> dict:
     first so ``priorState.enabled`` reflects what it *was* (drives a faithful
     undo via enable_user). Does not revoke live sessions — pair it with
     ``revoke_user_sessions``.
+
+    **Refuses to disable the account this connection authenticates as.** Doing so
+    revokes the credential mid-flight: the disable succeeds, and the undo that
+    would re-enable it then fails 403 — an operation that destroys its own
+    reversibility. Found exactly that way against a live authentik. If the
+    identity cannot be determined, the call proceeds (unknown is never treated
+    as "not me" in the other direction either — it simply cannot guard).
     """
+    self_id = conn.self_user_id() if hasattr(conn, "self_user_id") else None
+    if self_id is not None and str(user_id) == str(self_id):
+        raise SelfLockout(
+            f"Refusing to disable user '{user_id}': that is the account this tool "
+            f"authenticates as. Disabling it revokes the credential immediately, so "
+            f"the undo (enable_user) would fail with 403 and you would be locked out. "
+            f"Use a different administrative credential if you really must disable it."
+        )
     return _set_user_enabled(conn, user_id, enable=False)
 
 

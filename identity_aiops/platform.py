@@ -213,6 +213,7 @@ _AUTHENTIK_PATHS = {
     # users
     "users": "/api/v3/core/users/",
     "user_get": "/api/v3/core/users/{user_id}/",
+    "self_user": "/api/v3/core/users/me/",
     "user_count": "/api/v3/core/users/",
     "user_sessions": "/api/v3/core/authenticated_sessions/?user={user_id}",
     "sessions": "/api/v3/core/authenticated_sessions/",

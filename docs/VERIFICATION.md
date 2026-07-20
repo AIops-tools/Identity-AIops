@@ -3,7 +3,7 @@
 This document records what has and has not been validated against real identity
 providers, so the maturity claim is auditable rather than a vibe.
 
-## Already live-verified ✅ — Keycloak 26.0 (2026-07-20)
+## Already live-verified ✅ — Keycloak 26.0 and authentik 2024.10 (2026-07-20)
 
 - `doctor` against a live server: OIDC token exchange, then a user-count probe.
 - **The auth model is confirmed to be service-account based**: the tool exchanges a
@@ -23,7 +23,12 @@ providers, so the maturity claim is auditable rather than a vibe.
 
 ## Not yet live-verified ⚠️
 
-- **Authentik** — the entire second platform branch. This is now the largest gap.
+- **authentik is now verified too** — `doctor`, the reads, all four analyses, and
+  the governance loop (`disable_user` → `undo_apply`) against a live server. That
+  run produced the self-lockout finding: disabling the account whose token the tool
+  holds succeeded, then the undo failed 403. `disable_user` now refuses that, with
+  the tool's own identity resolved from the Keycloak token's `sub` claim or
+  authentik's `/core/users/me/`. Both paths verified live.
 - **Realistic analysis inputs**: the lab realm had one service account and one test
   user, so `login_failure_rca` and `mfa_coverage_analysis` ran but had no real
   failure history or MFA-less population to rank. They are verified as *executing

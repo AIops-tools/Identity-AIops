@@ -1,22 +1,32 @@
-# Release notes — identity-aiops 0.2.1
+# Release notes — identity-aiops 0.2.2
 
-Previous release: 0.2.0.
+Previous release: 0.2.1.
 
-## Live-verified: Keycloak
+## New guard: refusing an operation that would destroy its own undo
 
-No behaviour changes. This release records the first end-to-end run against a real
-**Keycloak 26.0**:
+`disable_user` now refuses to disable the account this tool authenticates as.
 
-- `doctor`, the reads, and all four analyses (`login_failure_rca`,
-  `stale_access_audit`, `client_misconfig_audit`, `mfa_coverage_analysis`).
-- Governance loop: `disable_user` really disabled the account on the live server,
-  captured `{"enabled": true}` as `priorState`, and `undo_apply` re-enabled it —
-  all three calls audited under a named approver.
-- Confirmed the auth model: this tool authenticates as a **confidential client via
-  `client_credentials`** (service account), not a username/password login. A user
-  credential fails with a 401 that correctly names the client_id/secret as the thing
-  to check.
+This was found the hard way against a live authentik: disabling the admin whose
+token the tool was holding **succeeded**, and the undo (`enable_user`) then
+failed with 403 — the credential had been revoked mid-flight. A governed,
+reversible tool must not offer an action that removes the ability to reverse it.
 
-See [docs/VERIFICATION.md](docs/VERIFICATION.md) — **Authentik remains unverified**,
-and the lab realm was too small for the analyses to be verified as *classifying
-correctly at scale* (only as executing correctly).
+The refusal names the concrete failure you would have hit and what to do instead
+(use a different administrative credential). The guard is exact: other accounts
+are unaffected, and if the tool's own identity cannot be determined it proceeds
+rather than blocking — unknown is never treated as "it is me".
+
+Identity resolution is per-platform and needs no configuration: Keycloak reads
+the `sub` claim of its own access token (no extra request), authentik calls
+`/core/users/me/`. Both verified live.
+
+## Live-verified: Authentik
+
+Authentik was previously mock-only. It has now been exercised against
+**authentik 2024.10**: `doctor`, the reads, all four analyses, and the
+governance loop — `disable_user` → `undo_apply` re-enabling, on a live server.
+
+With Keycloak 26.0 verified in 0.2.1, **both platforms are now live-verified**.
+See [docs/VERIFICATION.md](docs/VERIFICATION.md) — the lab realms were small, so
+the analyses are verified as *executing* correctly, not as *classifying* well at
+scale.
