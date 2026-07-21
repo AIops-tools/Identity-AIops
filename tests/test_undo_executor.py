@@ -126,6 +126,27 @@ def test_cli_undo_apply_dry_run_renders(gov_home):
 
 
 @pytest.mark.unit
+def test_cli_undo_apply_dry_run_on_an_unknown_id_is_refused_nonzero(gov_home):
+    """A preview that cannot resolve its inverse must refuse, not reassure.
+
+    This path already called the governed twin but ignored the error dict it
+    returns, so an unresolvable id left ``wouldApply`` empty and still printed a
+    cheerful "inverse: ?" banner with exit 0 — a green preview for a call that
+    was certain to fail, which is exactly the signal a weak model misreads as
+    transient and retries.
+    """
+    from typer.testing import CliRunner
+
+    from identity_aiops.cli import app
+
+    result = CliRunner().invoke(app, ["undo", "apply", "nonexistent-id", "--dry-run"])
+    assert result.exit_code == 1
+    assert "DRY-RUN" not in result.output  # no success banner for a refusal
+    assert "nonexistent-id" in result.output  # and it names what it could not find
+    assert _CALLS == []
+
+
+@pytest.mark.unit
 def test_undo_apply_audits_both_wrapper_and_inverse(gov_home):
     uid = _record()
     gov.undo_apply(undo_id=uid)

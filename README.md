@@ -9,9 +9,8 @@ audited way to operate the identity plane of self-built and small/mid-size
 infrastructure: who can sign in, what failed and why, which OAuth clients are
 misconfigured, and who still has no second factor. It is built for teams
 running their own Keycloak or authentik who want agent-driven identity
-operations **with receipts** — every tool call is audited, writes carry risk
-tiers with dry-run previews and undo tokens, and high-risk actions require a
-named human approver.
+operations **with receipts** — every tool call is audited, and writes carry
+risk-tier labels with dry-run previews and undo tokens.
 
 > **Verification status**: modelled on the public Keycloak admin REST API and
 > authentik API v3 and exercised against mocked responses; there is no recorded
@@ -51,40 +50,25 @@ Missing a platform (Authelia, Zitadel, Ory...), an endpoint, or an analysis
 you need? **缺功能提 issue/PR 欢迎留言** — open an issue or PR at
 https://github.com/AIops-tools/Identity-AIops, feature requests welcome.
 
-## Security: read-only mode
+## What this tool does, and does not, decide
 
-This tool is meant to be handed to an AI agent, so its safety story is enforced
-by the server rather than requested in a prompt:
+It delivers identity-provider operations — reads and writes — accurately and
+records every one of them. It does **not** decide whether a write is allowed to
+happen. That is the agent's judgement, or the permission of the account you
+connect it with: give the Keycloak service account (or authentik token) only
+the roles you want the agent to have — `view-users` / `view-events` /
+`view-clients` and no `manage-*` — and the writes fail at the server, the place
+that actually owns the permission.
 
-```bash
-export IDENTITY_READ_ONLY=1
-```
+So there is no read-only switch, no policy file, no approval gate to configure.
+The one thing the tool guarantees is that nothing is silent: **every call, over
+MCP and over the CLI alike, lands an audit row** in
+`~/.identity-aiops/audit.db`, and reversible writes still capture their
+before-state (fetched, never guessed) and record a replayable inverse.
 
-With that set, the **7 write tools are never registered**. An MCP client
-lists **22 tools instead of 29** — the writes are not hidden, not
-gated behind a flag, and not merely refused when called. They are absent from
-the session. A model cannot invoke a tool it was never offered, and cannot be
-argued into one.
-
-That distinction is the whole point. A tool that exists but refuses still invites
-retry loops and "I'll describe the call instead" behaviour from smaller models,
-and it leaves a reviewer trusting a promise. An absent tool is a fact you can
-check: connect, list the tools, and see that the writes are not there.
-
-Enforcement is two layers deep, so the switch cannot be sidestepped by changing
-entry point:
-
-| Layer | What it does | Covers |
-|---|---|---|
-| `@governed_tool` harness | refuses every non-read operation outright | MCP, CLI, and in-process callers |
-| MCP registration | write tools are removed from `list_tools()` | anything speaking MCP |
-
-Read operations are unaffected, and every call is still audited to
-`~/.identity-aiops/audit.db`.
-
-> The read/write split is derived from each tool's declared `risk_level`, and a
-> test asserts that this never disagrees with the `[READ]`/`[WRITE]` tag in the
-> tool's own documentation — so a write can't quietly present itself as a read.
+> Each tool declares a `risk_level`, carried into the audit row as a descriptive
+> tier — so a reviewer can see at a glance that a row was, say, a high-risk
+> secret rotation. It is a label, not a gate.
 
 Running a smaller / local model? See
 [agent-guardrails.md](skills/identity-aiops/references/agent-guardrails.md) — it lists
@@ -96,7 +80,7 @@ restating them) and gives a ready-made system prompt for what's left.
 ```bash
 uv tool install identity-aiops        # or: pipx install identity-aiops
 
-identity-aiops init      # wizard: target + realm + credential (encrypted) + policy seed
+identity-aiops init      # wizard: target + realm + credential (encrypted)
 identity-aiops doctor    # token acquisition + user-count probe per target
 identity-aiops overview  # one-shot estate summary
 ```
@@ -132,27 +116,28 @@ delegated to the governed MCP twins so CLI writes land in the audit log too.
 > **env-block caveat**: MCP clients launch the server with a minimal
 > environment — variables from your shell profile are NOT inherited. Anything
 > the server needs (`IDENTITY_AIOPS_MASTER_PASSWORD`, an alternate
-> `IDENTITY_AIOPS_HOME`, `IDENTITY_AUDIT_APPROVED_BY` for high-risk writes)
-> must be set in the `env` block above.
+> `IDENTITY_AIOPS_HOME`, `IDENTITY_AUDIT_APPROVED_BY` to attribute writes on the
+> audit trail) must be set in the `env` block above.
 
 ## Governance
 
 Every MCP tool runs through the vendored governance harness
 (`identity_aiops/governance/`, zero external dependencies):
 
-- **Audit** — every call (including denials and errors) lands in
-  `~/.identity-aiops/audit.db` with params, status, risk level, and approver.
+- **Audit** — every call (including errors) lands in
+  `~/.identity-aiops/audit.db` with params, status, and risk level, plus any
+  optional approver/rationale annotation. It records; it does not authorize.
 - **Budget** — per-session call/time budgets and a runaway breaker
   (`IDENTITY_MAX_TOOL_CALLS`, `IDENTITY_MAX_TOOL_SECONDS`,
-  `IDENTITY_RUNAWAY_MAX`).
-- **Risk tiers + approval** — reads are `low`; containment/hygiene writes
-  (`disable_user`, `revoke_user_sessions`, `require_password_reset`) are
-  `medium`; access-granting or boundary-replacing writes (`enable_user`,
-  `update_client_redirect_uris`, `rotate_client_secret`) are `high`.
-  **Secure by default**: with no `rules.yaml`, high/critical writes are denied
-  unless a named approver is present (`IDENTITY_AUDIT_APPROVED_BY`, plus
-  `IDENTITY_AUDIT_RATIONALE`). `identity-aiops init` seeds this dual-control
-  rule explicitly; the file hot-reloads.
+  `IDENTITY_RUNAWAY_MAX`) — a safety backstop, not an authorization gate.
+- **Risk tier** — reads are `low`; containment/hygiene writes (`disable_user`,
+  `revoke_user_sessions`, `require_password_reset`) are `medium`;
+  access-granting or boundary-replacing writes (`enable_user`,
+  `update_client_redirect_uris`, `rotate_client_secret`) are `high`. The tier
+  is a descriptive label carried onto the audit row, not a gate — whether a
+  write runs is the agent's judgement or the connecting account's permissions.
+  `IDENTITY_AUDIT_APPROVED_BY` / `IDENTITY_AUDIT_RATIONALE` are optional
+  annotations recorded when set, never required.
 - **Undo** — reversible writes capture the REAL prior state (fetched before
   mutating, never guessed) and record a replayable inverse descriptor in
   `~/.identity-aiops/undo.db`. Irreversible writes (`revoke_user_sessions`,
@@ -185,7 +170,7 @@ targets:
 ```
 
 Set `IDENTITY_AIOPS_HOME` to relocate all state (config, secrets, audit,
-undo, policy). `IDENTITY_AIOPS_CONFIG` points the MCP server at an alternate
+undo). `IDENTITY_AIOPS_CONFIG` points the MCP server at an alternate
 config file.
 
 ## Development

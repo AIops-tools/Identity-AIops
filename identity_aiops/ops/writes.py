@@ -1,9 +1,10 @@
 """Governed identity writes — the only state-changing operations in the tool.
 
-Identity writes are prime dual-approval material: they grant, revoke, or
-re-key access. Every reversible write reads the IdP's current state **before**
-it changes anything, so the harness records a faithful undo / audit trail (the
-before-state is fetched via a real GET, never guessed):
+Identity writes are high-consequence — they grant, revoke, or re-key access,
+which is why they carry the higher risk-tier labels on the audit row. Every
+reversible write reads the IdP's current state **before** it changes anything,
+so the harness records a faithful undo / audit trail (the before-state is
+fetched via a real GET, never guessed):
 
   * ``disable_user`` / ``enable_user`` — read the user's current enabled flag
     first; undo restores it (a symmetric pair).
@@ -127,7 +128,7 @@ def enable_user(conn: Any, user_id: str) -> dict:
     """[WRITE][high] Re-enable a user (restores sign-in), capturing prior state.
 
     Re-granting access reverses a containment action, so this side of the pair
-    carries the high tier (named approver under the default policy).
+    carries the high risk tier (a descriptive audit label, not a gate).
     """
     return _set_user_enabled(conn, user_id, enable=True)
 

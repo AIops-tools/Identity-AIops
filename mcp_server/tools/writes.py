@@ -1,16 +1,17 @@
 """Governed identity-write MCP tools (the only state-changing tools).
 
-Every tool is wrapped with the governance harness (audit + graduated approval
-tier) and takes a ``dry_run`` preview. Reversible writes pass an ``undo=``
-callback that turns the fetched before-state into an inverse descriptor the
-harness records; irreversible ones (revoke_user_sessions,
-rotate_client_secret) record priorState only.
+Every tool is wrapped with the governance harness (audit + risk-tier labelling)
+and takes a ``dry_run`` preview. Reversible writes pass an ``undo=`` callback
+that turns the fetched before-state into an inverse descriptor the harness
+records; irreversible ones (revoke_user_sessions, rotate_client_secret) record
+priorState only.
 
-Risk tiers — identity writes are prime dual-approval material:
+Risk tiers are a descriptive label carried onto the audit row, not a gate:
 enable_user (reverses containment), update_client_redirect_uris (replaces the
 OAuth security boundary) and rotate_client_secret (irreversible re-key) = high;
 disable_user / revoke_user_sessions / require_password_reset (containment and
-hygiene actions an operator needs promptly) = medium.
+hygiene actions an operator needs promptly) = medium. Whether a write is allowed
+is the agent's judgement or the connecting account's permissions, not the tool's.
 """
 
 from typing import Any, List, Optional  # noqa: UP035 — FastMCP reflects List
@@ -128,9 +129,10 @@ def enable_user(
 ) -> dict:
     """[WRITE][risk=high] Re-enable a user (restores sign-in); reversible.
 
-    Re-granting access reverses a containment action, so it requires an
-    approver (IDENTITY_AUDIT_APPROVED_BY) under the graduated-autonomy policy.
-    Pass dry_run=True to preview.
+    Re-granting access reverses a containment action, so it is tagged risk=high
+    on the audit row (a descriptive label, not a gate). Whether it should run is
+    the agent's judgement or the connecting account's permissions, not the
+    tool's. Pass dry_run=True to preview.
 
     Args:
         user_id: User id, from list_users.
@@ -212,9 +214,9 @@ def update_client_redirect_uris(
     """[WRITE][risk=high] REPLACE a client's redirect-URI list; reversible —
     the prior list is captured and the undo replays it.
 
-    Redirect URIs are the OAuth flow's security boundary, so this requires an
-    approver (IDENTITY_AUDIT_APPROVED_BY). Pass the FULL desired list (this
-    replaces, not appends) and dry_run=True to preview.
+    Redirect URIs are the OAuth flow's security boundary, so this is tagged
+    risk=high on the audit row (a descriptive label, not a gate). Pass the FULL
+    desired list (this replaces, not appends) and dry_run=True to preview.
 
     Args:
         client_id: Client internal id, from list_clients.
@@ -240,7 +242,7 @@ def rotate_client_secret(
 ) -> dict:
     """[WRITE][risk=high] Rotate a client's secret. IRREVERSIBLE — the old
     secret is invalidated; only masked fingerprints are recorded/returned,
-    never the value. Requires an approver (IDENTITY_AUDIT_APPROVED_BY).
+    never the value.
 
     Refuses to rotate the client this tool authenticates as: that would revoke
     its own credential with no undo to fall back on — including under dry_run,

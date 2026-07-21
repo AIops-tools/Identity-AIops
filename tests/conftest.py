@@ -27,8 +27,11 @@ def isolate_harness_home(tmp_path_factory, monkeypatch):
 
 @pytest.fixture(autouse=True)
 def _default_approver(monkeypatch):
-    """The policy layer is secure-by-default: with no rules.yaml, high/critical
-    governed calls require a named approver. Tests exercising tool behavior
-    are not about that gate, so record a synthetic approver globally; the
-    governance-persistence tests remove it to test the gate itself."""
+    """Record a synthetic approver annotation on every test's audit rows.
+
+    IDENTITY_AUDIT_APPROVED_BY is an optional audit annotation now — recorded on
+    the row when set, never required and never a gate. Setting it globally keeps
+    a stable value in the trail for tests that inspect audit rows; the
+    governance-persistence tests clear it to prove a write still runs without
+    one."""
     monkeypatch.setenv("IDENTITY_AUDIT_APPROVED_BY", "pytest")

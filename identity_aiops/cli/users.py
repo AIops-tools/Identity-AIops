@@ -19,7 +19,6 @@ from identity_aiops.cli._common import (
     console,
     double_confirm,
     dry_run_preview,
-    dry_run_print,
     get_connection,
     print_result,
 )
@@ -115,12 +114,13 @@ def users_enable(
     target: TargetOption = None,
     dry_run: DryRunOption = False,
 ) -> None:
-    """Re-enable a user (high risk: reverses containment; needs an approver)."""
+    """Re-enable a user (high risk: reverses containment)."""
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="enable_user", api_call="set user enabled=true",
-                      parameters={"user_id": user_id})
+        dry_run_preview(gov.enable_user(user_id=user_id, dry_run=True, target=target),
+                        operation="enable_user", api_call="set user enabled=true",
+                        parameters={"user_id": user_id})
         return
     double_confirm("enable user", user_id)
     console.print_json(json.dumps(gov.enable_user(user_id=user_id, target=target)))
@@ -137,8 +137,9 @@ def users_revoke_sessions(
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="revoke_user_sessions", api_call="logout all sessions",
-                      parameters={"user_id": user_id})
+        dry_run_preview(gov.revoke_user_sessions(user_id=user_id, dry_run=True, target=target),
+                        operation="revoke_user_sessions", api_call="logout all sessions",
+                        parameters={"user_id": user_id})
         return
     double_confirm("revoke all sessions for user", user_id)
     console.print_json(json.dumps(gov.revoke_user_sessions(user_id=user_id, target=target)))
@@ -159,8 +160,11 @@ def users_require_reset(
 
     verb = "clear password-reset requirement" if clear else "require password reset"
     if dry_run:
-        dry_run_print(operation="require_password_reset", api_call=verb,
-                      parameters={"user_id": user_id, "clear": clear})
+        dry_run_preview(
+            gov.require_password_reset(user_id=user_id, clear=clear, dry_run=True,
+                                       target=target),
+            operation="require_password_reset", api_call=verb,
+            parameters={"user_id": user_id, "clear": clear})
         return
     double_confirm(verb, user_id)
     console.print_json(

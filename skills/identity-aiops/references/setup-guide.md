@@ -56,10 +56,6 @@ targets:
     verify_ssl: true
 ```
 
-The wizard also seeds `~/.identity-aiops/rules.yaml` with the dual-control
-rule (high-risk writes need a named approver). It never overwrites an existing
-rules file.
-
 ## 4. Verify
 
 ```bash
@@ -80,7 +76,7 @@ plus a cheap realm probe — the user count. Exit code 0 = healthy.
       "args": ["--from", "identity-aiops", "identity-aiops-mcp"],
       "env": {
         "IDENTITY_AIOPS_MASTER_PASSWORD": "<master password>",
-        "IDENTITY_AUDIT_APPROVED_BY": "<approver for high-risk writes>"
+        "IDENTITY_AUDIT_APPROVED_BY": "<optional: attributed on audit rows>"
       }
     }
   }
@@ -100,8 +96,10 @@ block.
   roles you actually want the agent to exercise — the reads/analyses work with
   view-only roles.
 - High-risk writes (`enable_user`, `update_client_redirect_uris`,
-  `rotate_client_secret`) are denied without `IDENTITY_AUDIT_APPROVED_BY`
-  under the seeded dual-control policy.
+  `rotate_client_secret`) are tagged risk=high on the audit row; whether they
+  run is the connecting account's permissions or your agent's judgement, not a
+  tool-side gate. `IDENTITY_AUDIT_APPROVED_BY` / `IDENTITY_AUDIT_RATIONALE` are
+  optional annotations recorded when set.
 - `rotate_client_secret` never shows a secret — fetch the new value from the
   admin console over a trusted channel.
 - Audit/undo live in `~/.identity-aiops/` (`audit.db`, `undo.db`), relocatable

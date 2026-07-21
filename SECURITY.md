@@ -41,8 +41,10 @@ Every MCP tool runs through the bundled `@governed_tool` harness
 - **Token/runaway budget** — hard ceilings (`IDENTITY_MAX_TOOL_CALLS` /
   `IDENTITY_MAX_TOOL_SECONDS`) plus an on-by-default guard that trips a tight
   poll/retry loop, preventing unbounded API consumption.
-- **Graduated risk tiers** — `~/.identity-aiops/rules.yaml` `risk_tiers` gate
-  writes by environment/tag; the highest tiers require a recorded approver.
+- **Risk-tier labelling** — each tool's `risk_level` is carried onto the audit
+  row as a descriptive tier; it is a label, not a gate. There is no read-only
+  switch, policy file, or approval gate — whether a write is permitted is the
+  agent's judgement or the connecting account's permissions.
 - **Undo-token recording** — reversible writes capture the BEFORE state (via a
   real GET) and record an inverse descriptor (`disable_user` ↔ `enable_user`;
   `require_password_reset` clears via its own `clear=True` path;
@@ -51,12 +53,13 @@ Every MCP tool runs through the bundled `@governed_tool` harness
 
 ### State-Changing Operations
 Access-granting / boundary-replacing writes — `enable_user`,
-`update_client_redirect_uris`, `rotate_client_secret` — are `risk_level=high`,
-accept a `dry_run` preview, and (under `risk_tiers`) require a recorded approver
-(`IDENTITY_AUDIT_APPROVED_BY` + `IDENTITY_AUDIT_RATIONALE`).
-`revoke_user_sessions` and `rotate_client_secret` are irreversible (priorState
-recorded, no undo). Containment/hygiene writes — `disable_user`,
-`revoke_user_sessions`, `require_password_reset` — are `risk_level=medium`.
+`update_client_redirect_uris`, `rotate_client_secret` — are `risk_level=high`
+and accept a `dry_run` preview; reversible ones capture the before-state and
+record an undo token. `revoke_user_sessions` and `rotate_client_secret` are
+irreversible (priorState recorded, no undo). Containment/hygiene writes —
+`disable_user`, `revoke_user_sessions`, `require_password_reset` — are
+`risk_level=medium`. `IDENTITY_AUDIT_APPROVED_BY` + `IDENTITY_AUDIT_RATIONALE`
+are optional audit annotations, recorded when set but never required.
 
 ### SSL/TLS Verification
 `verify_ssl` defaults to true; disable only for self-signed lab certificates.

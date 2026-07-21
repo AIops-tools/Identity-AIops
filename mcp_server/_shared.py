@@ -117,7 +117,7 @@ mcp = FastMCP(
         "revoke_user_sessions (priorState session count), "
         "update_client_redirect_uris (undo replays the prior list), and "
         "rotate_client_secret (masked priorState) at risk=high with a dry_run "
-        "preview and an approver. Every tool runs through the identity-aiops "
+        "preview. Every tool runs through the identity-aiops "
         "governance harness (audit / budget / risk-tier / undo). The same "
         "tools work on both IdPs: a per-target 'platform' field selects the "
         "API shape."

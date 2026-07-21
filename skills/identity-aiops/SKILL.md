@@ -22,7 +22,7 @@ compatibility: >
   Standalone, self-governed identity-provider operations across Keycloak (admin REST API /admin/realms/{realm}/..., OAuth2 client-credentials grant against the realm token endpoint with automatic refresh-on-401) and authentik (API v3 /api/v3/..., long-lived API token as a Bearer header). Each target in the config names its own platform, and a name-keyed platform registry selects the API shape, so the same tools work on both and one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.identity-aiops/ (relocatable via IDENTITY_AIOPS_HOME).
   Credentials: the Keycloak confidential client's client secret or the authentik API token is stored ENCRYPTED in ~/.identity-aiops/secrets.enc (Fernet/AES-128 + scrypt-derived key) — never plaintext on disk. Run 'identity-aiops init' to onboard (it asks for the platform, base URL, and — Keycloak — realm + client_id), or 'identity-aiops secret set <target>' to add one. The store is unlocked by a master password from IDENTITY_AIOPS_MASTER_PASSWORD (non-interactive/MCP/CI) or an interactive prompt (CLI on a TTY). A legacy plaintext env var IDENTITY_<TARGET_NAME_UPPER>_SECRET is still honoured as a fallback with a deprecation warning (migrate with 'identity-aiops secret migrate'). Secrets are held only in memory, never logged or echoed; rotate_client_secret returns and records masked fingerprints only.
-  State-changing operations pass through the @governed_tool decorator (pre-check + budget guard + audit + risk-tier gate). enable_user, update_client_redirect_uris, and rotate_client_secret are risk=high with dry_run + an approver gate; revoke_user_sessions and rotate_client_secret are irreversible (priorState only). Reversible writes (disable_user/enable_user, require_password_reset, update_client_redirect_uris) capture the real fetched before-state and record an inverse undo descriptor.
+  State-changing operations pass through the @governed_tool decorator (budget guard + audit + risk-tier labelling). enable_user, update_client_redirect_uris, and rotate_client_secret are risk=high with dry_run; revoke_user_sessions and rotate_client_secret are irreversible (priorState only). Reversible writes (disable_user/enable_user, require_password_reset, update_client_redirect_uris) capture the real fetched before-state and record an inverse undo descriptor. The tool records every call but does not decide whether a write is permitted — that is the agent's judgement or the connecting account's permissions.
   Webhooks: none — no outbound network calls beyond the configured Keycloak / authentik REST API.
   SSL: verify_ssl defaults to ON; disable only for self-signed lab certs.
   Transitive dependencies: httpx (HTTP client) and the MCP SDK. No post-install scripts or background services.
@@ -37,7 +37,7 @@ Governed identity operations — **29 MCP tools** across **Keycloak** (admin RES
 `/admin/realms/{realm}/...`) and **authentik** (API v3 `/api/v3/...`), every one
 wrapped with the bundled `@governed_tool` harness: a local unified audit log
 under `~/.identity-aiops/`, policy engine, token/runaway budget guard,
-undo-token recording, and graduated-autonomy risk tiers. A per-target
+undo-token recording, and risk-tier labelling on the audit row. A per-target
 `platform` field selects the API shape, so the same tools work on both IdPs and
 one config can span a mixed estate. The Keycloak client secret / authentik API
 token is stored **encrypted** (`~/.identity-aiops/secrets.enc`, Fernet +
@@ -89,7 +89,7 @@ identity-aiops doctor
   flow, password grant) and fix them (`update_client_redirect_uris`)
 - Measure and close the MFA gap (`mfa_coverage_analysis`, `user_credentials`)
 - Contain a compromised account (`disable_user` + `revoke_user_sessions` +
-  `require_password_reset`, all governed; re-enable needs an approver)
+  `require_password_reset`, all governed; re-enable is tagged high risk)
 - Rotate a leaked client secret (`rotate_client_secret`, high risk, masked)
 
 **Do NOT use when** the target is not a Keycloak/authentik IdP — route
@@ -216,14 +216,22 @@ service accounts — they have no interactive user to complete the flow, and the
 
 ## Governance & Safety
 
-- Every tool is audited to `~/.identity-aiops/audit.db` (relocatable via
-  `IDENTITY_AIOPS_HOME`).
-- **Secure by default**: with no `~/.identity-aiops/rules.yaml`, high-risk
-  operations are denied unless `IDENTITY_AUDIT_APPROVED_BY` names an approver
-  (set `IDENTITY_AUDIT_RATIONALE` too). `identity-aiops init` seeds a starter
-  rules.yaml; an operator-authored rules file is honoured as-is.
-- High-risk ops (`enable_user`, `update_client_redirect_uris`,
-  `rotate_client_secret`) require the named approver; writes support
+The skill delivers reads and writes and records them; it does **not** decide
+whether a write is permitted. That is your agent's judgement, or the permission
+of the account you connect it with (a Keycloak service account or authentik
+token without `manage-*` scope — writes then fail at the server). There is no
+read-only switch, policy file, or approval gate.
+
+- **Audit is the guarantee, and it is not bypassable.** Every call — MCP and
+  CLI alike — lands an audit row in `~/.identity-aiops/audit.db` (relocatable
+  via `IDENTITY_AIOPS_HOME`): params, status, and the risk tier.
+- `IDENTITY_AUDIT_APPROVED_BY` / `IDENTITY_AUDIT_RATIONALE` are optional
+  annotations recorded on the row (who/why); they are never required and never
+  block.
+- **Risk tier** — a descriptive label on the audit row derived from
+  `risk_level` (`enable_user`, `update_client_redirect_uris`,
+  `rotate_client_secret` = high; `disable_user`, `revoke_user_sessions`,
+  `require_password_reset` = medium); it gates nothing. Writes support
   `--dry-run` and double confirmation at the CLI.
 - Reversible writes capture the real fetched before-state and record an
   inverse descriptor (disable↔enable, reset-flag→clear, redirect-URI list
@@ -235,6 +243,6 @@ service accounts — they have no interactive user to complete the flow, and the
 - `references/capabilities.md` — full tool + platform + API-path reference
 - `references/cli-reference.md` — CLI command reference
 - `references/setup-guide.md` — onboarding, credentials, and connectivity
-- `references/agent-guardrails.md` — running with a smaller / local model:
-  read-only mode (`IDENTITY_READ_ONLY`), the truncation and null-field
-  contracts, the Keycloak-vs-authentik tool asymmetry, and a system prompt
+- `references/agent-guardrails.md` — running with a smaller / local model: the
+  truncation and null-field contracts, the Keycloak-vs-authentik tool
+  asymmetry, and a system prompt

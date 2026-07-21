@@ -1,7 +1,8 @@
 """CLI governed-write coverage for the commands beyond ``users disable``:
 enable / revoke-sessions / require-reset and clients set-redirect-uris, each
 driven past dry-run and the double-confirm prompts so the governed twin fires
-and lands an audit row. Dry-run branches are asserted to make no API call.
+and lands an audit row. The dry-run branches route through that same twin, so
+they are asserted to audit while issuing no mutating verb.
 """
 
 from __future__ import annotations
@@ -107,12 +108,15 @@ def test_cli_clients_set_redirect_uris_confirmed_is_audited(gov_home, idp_conn):
 
 
 @pytest.mark.unit
-def test_cli_unguarded_write_dry_runs_mutate_nothing(gov_home, idp_conn):
+def test_cli_write_dry_runs_are_audited_but_never_mutate(gov_home, idp_conn):
     """The invariant is: a dry_run MAY read, it must never WRITE.
 
-    None of these writes carries a self-lockout guard, so their previews are
-    still the plain local banner and never reach the governed twin (hence no
-    audit row). The guarded previews are covered by the test below.
+    These four previews used to stop at a hand-written banner without ever
+    entering governance. "Has a self-lockout guard" was never a sensible reason
+    to audit one preview and not another — it left an operator unable to tell
+    which previews were trustworthy. Now every preview with a governed twin
+    routes through it, so each lands its own audit row while still issuing no
+    mutating verb.
     """
     from identity_aiops.cli import app
 
@@ -129,6 +133,12 @@ def test_cli_unguarded_write_dry_runs_mutate_nothing(gov_home, idp_conn):
     idp_conn.post.assert_not_called()
     idp_conn.patch.assert_not_called()
     idp_conn.delete.assert_not_called()
+    assert _audit_tools(gov_home / "audit.db") == [
+        "enable_user",
+        "revoke_user_sessions",
+        "require_password_reset",
+        "update_client_redirect_uris",
+    ]
 
 
 @pytest.mark.unit

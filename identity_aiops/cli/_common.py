@@ -24,10 +24,17 @@ DryRunOption = Annotated[
 
 
 def _cli_error_types() -> tuple[type[BaseException], ...]:
-    """Exceptions translated to a one-line teaching error instead of a traceback."""
-    from identity_aiops.connection import IdentityApiError
+    """Exceptions translated to a one-line teaching error instead of a traceback.
 
-    return (IdentityApiError, KeyError, OSError, ValueError)
+    ``PolicyDenied`` is included defensively even though it is not a ValueError:
+    the harness does not raise it today (there is no approval gate or read-only
+    switch), but if a governed path ever surfaced it, its message reads far
+    better as a single red line than as a bare traceback.
+    """
+    from identity_aiops.connection import IdentityApiError
+    from identity_aiops.governance import PolicyDenied
+
+    return (IdentityApiError, KeyError, OSError, ValueError, PolicyDenied)
 
 
 def cli_errors(fn: Callable) -> Callable:

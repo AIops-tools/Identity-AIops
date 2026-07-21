@@ -47,7 +47,7 @@ identity-aiops users credentials <user-id>          # MFA surface
 
 # governed writes
 identity-aiops users disable <user-id> [--dry-run]          # med, undo: enable
-identity-aiops users enable <user-id> [--dry-run]           # HIGH, needs approver
+identity-aiops users enable <user-id> [--dry-run]           # HIGH
 identity-aiops users revoke-sessions <user-id> [--dry-run]  # med, irreversible
 identity-aiops users require-reset <user-id> [--clear] [--dry-run]
 ```
@@ -67,9 +67,9 @@ identity-aiops clients rotate-secret <client-id> [--dry-run]                    
 
 | Variable | Purpose |
 |----------|---------|
-| `IDENTITY_AIOPS_HOME` | relocate all state (config, secrets, audit, undo, rules) |
+| `IDENTITY_AIOPS_HOME` | relocate all state (config, secrets, audit, undo) |
 | `IDENTITY_AIOPS_CONFIG` | alternate config.yaml path (MCP server) |
 | `IDENTITY_AIOPS_MASTER_PASSWORD` | unlock secrets.enc non-interactively |
-| `IDENTITY_AUDIT_APPROVED_BY` / `IDENTITY_AUDIT_RATIONALE` | named approver for high-risk writes |
+| `IDENTITY_AUDIT_APPROVED_BY` / `IDENTITY_AUDIT_RATIONALE` | optional audit annotations (who/why), recorded when set |
 | `IDENTITY_MAX_TOOL_CALLS` / `IDENTITY_MAX_TOOL_SECONDS` | session budget ceilings |
 | `IDENTITY_<TARGET>_SECRET` | legacy plaintext secret fallback (deprecated) |

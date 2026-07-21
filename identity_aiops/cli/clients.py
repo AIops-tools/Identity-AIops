@@ -19,7 +19,6 @@ from identity_aiops.cli._common import (
     console,
     double_confirm,
     dry_run_preview,
-    dry_run_print,
     get_connection,
     print_result,
 )
@@ -68,13 +67,16 @@ def clients_set_redirect_uris(
     target: TargetOption = None,
     dry_run: DryRunOption = False,
 ) -> None:
-    """Replace a client's redirect-URI list (high risk; needs an approver)."""
+    """Replace a client's redirect-URI list (high risk)."""
     from mcp_server.tools import writes as gov
 
     if dry_run:
-        dry_run_print(operation="update_client_redirect_uris",
-                      api_call="replace redirect URIs",
-                      parameters={"client_id": client_id, "redirect_uris": uris})
+        dry_run_preview(
+            gov.update_client_redirect_uris(client_id=client_id, redirect_uris=list(uris),
+                                            dry_run=True, target=target),
+            operation="update_client_redirect_uris",
+            api_call="replace redirect URIs",
+            parameters={"client_id": client_id, "redirect_uris": uris})
         return
     double_confirm("replace redirect URIs on client", client_id)
     console.print_json(json.dumps(
@@ -90,7 +92,7 @@ def clients_rotate_secret(
     target: TargetOption = None,
     dry_run: DryRunOption = False,
 ) -> None:
-    """Rotate a client's secret (irreversible, high risk; needs an approver)."""
+    """Rotate a client's secret (irreversible, high risk)."""
     from mcp_server.tools import writes as gov
 
     if dry_run:

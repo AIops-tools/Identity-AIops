@@ -18,8 +18,7 @@ providers, so the maturity claim is auditable rather than a vibe.
 - Governance loop end-to-end: `disable_user` really disabled the account on the
   live server (`enabled: false` confirmed via the admin API), captured
   `{"enabled": true}` as `priorState`, and `undo_apply` re-enabled it — with all
-  three calls (`disable_user`, `enable_user`, `undo_apply`) audited under a named
-  approver.
+  three calls (`disable_user`, `enable_user`, `undo_apply`) audited.
 
 ## Not yet live-verified ⚠️
 

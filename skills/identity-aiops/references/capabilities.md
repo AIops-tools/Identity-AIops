@@ -70,4 +70,6 @@ percent-encoded centrally.
 Risk-tier rationale: containment/hygiene actions an operator needs promptly
 (disable, revoke, require-reset) sit at medium; access-granting or
 boundary-replacing actions (enable, redirect-URI replace, secret rotation) sit
-at high and require a named approver under the default dual-control policy.
+at high. The tier is a descriptive label carried onto the audit row, not a
+gate — whether a write runs is the agent's judgement or the connecting
+account's permissions.

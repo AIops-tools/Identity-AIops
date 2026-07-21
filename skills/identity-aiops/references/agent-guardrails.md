@@ -9,16 +9,31 @@ the tool now enforces them itself.
 The distinction matters. A guardrail in a prompt is a request. A guardrail in the
 harness is a guarantee. Anything below that we could move into the harness, we did.
 
-## What the tool now enforces — do not waste prompt budget on these
+## Authorization is not this tool's job — decide it where it belongs
+
+Whether a write should happen is your decision, or the account's. The tool does
+not gate it — there is no read-only switch and no approval prompt to configure.
+The two right places to control read vs write:
+
+- **The account you connect with.** Give the Keycloak service account (or the
+  authentik token) only the roles you want the agent to have — `view-users` /
+  `view-events` / `view-clients` and no `manage-*`. A write then fails at the
+  server, which is the only place the permission actually lives — no skill-side
+  flag can be argued around by a model, but a revoked permission cannot be.
+- **Your agent's system prompt.** If you want an observe-only session, tell the
+  model not to call the write tools (they are clearly tagged `[WRITE]`).
+
+What the tool *does* guarantee is that you can always see what happened:
+
+## What the tool enforces — do not waste prompt budget on these
 
 | You might be tempted to prompt | Why you don't need to |
 |---|---|
-| "Work read-only, never modify anything" | Set `IDENTITY_READ_ONLY=1`. Write tools are then **not registered at all** — they never appear in the tool list, so the model cannot call one even if it tries. The `@governed_tool` harness independently refuses writes, so the CLI is covered too. |
 | "Don't invent a value when a field is missing" | A field the IdP did not return comes back as `null`, never as `""`. Absent and empty are distinguishable in the payload — a `lastLogin` of `null` means "no sign-in on record", not "signed in at an empty time". |
 | "Tell me if the output was cut off" | Every listing returns `{"users": [...], "returned": N, "limit": L, "truncated": true/false}` (same shape for `events`, `groups`, `members`, `clients`, `sessions`, `identityProviders`). Truncation is measured — one extra row is fetched — not guessed from a length coincidence. |
 | "Tell me if the analysis only saw part of the data" | The four analyses echo `inputsTruncated` / `feedTruncated`, and `truncated` + `maxRows` when a finding list was capped. The `*Count` fields are always the full totals. |
 | "Preserve the ordering / tell me what's most urgent" | `client_misconfig_audit` ranks by `riskScore` with the severity weights in the payload; `login_failure_rca` sorts findings worst-first and every finding carries the numbers that tripped it. Priority is in the payload, not implied by list position. |
-| "Confirm before anything destructive" | Write CLI commands have `--dry-run` plus double confirmation, and high-risk tiers require a named approver (`IDENTITY_AUDIT_APPROVED_BY`). |
+| "Confirm before anything destructive" | Write CLI commands have `--dry-run` plus double confirmation. |
 | "Log what you did" | Every call is audited to `~/.identity-aiops/audit.db` regardless of what the model says it did. |
 
 ## Platform asymmetry — a teaching error is an answer, not a failure
@@ -122,24 +137,25 @@ SCOPE
 
 ## Recommended setup for a local model
 
+Start with a connection that *cannot* write, verify, and widen the account's
+permission only when you trust the setup. Identity writes are unusually
+consequential — `disable_user` and `revoke_user_sessions` lock a person out of
+everything behind the IdP.
+
 ```bash
-# Read-only until you trust the setup — this is enforced, not advisory.
-export IDENTITY_READ_ONLY=1
+# Give the Keycloak service account only view-* roles (or an authentik token
+# without manage scope). A write then fails at the server, not on a flag a
+# model can argue around. Then:
 identity-aiops doctor
 ```
 
-Then, when you are ready to allow writes, unset it and set an approver so the
-high-risk tier has an accountable name on it:
+Optionally annotate the audit trail with who is operating and why — recorded on
+every row, never required:
 
 ```bash
-unset IDENTITY_READ_ONLY
 export IDENTITY_AUDIT_APPROVED_BY="your.name@example.com"
 export IDENTITY_AUDIT_RATIONALE="access review 2026-07-20"
 ```
-
-Identity writes are unusually consequential — `disable_user` and
-`revoke_user_sessions` lock a person out of everything behind the IdP. Leaving
-read-only on for the first few sessions costs nothing.
 
 ## If your model still struggles
 
