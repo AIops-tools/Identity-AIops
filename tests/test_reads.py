@@ -63,6 +63,25 @@ def test_list_users_keycloak_normalizes():
 
 
 @pytest.mark.unit
+def test_timestamp_rendering_never_raises_on_server_junk():
+    """No value the IdP can send may take down a listing.
+
+    ``fromtimestamp`` raises for values outside the platform's time range, so an
+    absurd epoch in one field would have crashed the whole users/sessions/events
+    read instead of leaving that one field unknown. And a bool is not a
+    timestamp: ``bool`` subclasses ``int``, so it has to be rejected before the
+    numeric path or ``True`` renders as one second past the epoch.
+    """
+    from identity_aiops.ops._util import opt_ts
+
+    for junk in (True, False, 10**20, "10" * 20, 1e30, -5, 0, "", None, "abc"):
+        assert opt_ts(junk) is None, junk
+    # …while real values still render.
+    assert opt_ts(1786335328000) == "2026-08-10T04:15:28+00:00"
+    assert opt_ts("2026-07-01T10:00:00Z") == "2026-07-01T10:00:00+00:00"
+
+
+@pytest.mark.unit
 def test_timestamps_are_one_format_across_both_platforms():
     """The same instant must render identically whichever IdP reported it.
 

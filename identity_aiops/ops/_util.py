@@ -146,8 +146,19 @@ def opt_ts(value: Any) -> str | None:
 
     ``None`` rather than ``""`` for a missing value: absent is not "the epoch",
     and the caller must be able to tell the two apart.
+
+    Nothing the server sends can make this raise. A bool is not a timestamp
+    (``bool`` subclasses ``int``, so it must be rejected *before* the numeric
+    path, or ``True`` renders as one second past the epoch), and a value outside
+    the platform's time range raises from ``fromtimestamp`` — which would take
+    down a whole user/session/event listing over one unusable field.
     """
+    if isinstance(value, bool):
+        return None
     seconds = epoch_seconds(value)
     if seconds <= 0:
         return None
-    return datetime.fromtimestamp(seconds, tz=UTC).isoformat(timespec="seconds")
+    try:
+        return datetime.fromtimestamp(seconds, tz=UTC).isoformat(timespec="seconds")
+    except (OverflowError, OSError, ValueError):
+        return None  # unrenderable, which is a kind of unknown — not a crash
