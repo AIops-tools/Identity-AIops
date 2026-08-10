@@ -52,11 +52,42 @@ def test_list_users_keycloak_normalizes():
     assert out["returned"] == 2 and out["truncated"] is False
     assert out["users"][0] == {
         "id": "u1", "username": "alice", "email": "a@x.io", "enabled": True,
+        # Keycloak sends epoch-MILLIS; the read surface renders ISO-8601 UTC so
+        # one field name does not carry two formats across the two platforms.
+        "created": "2024-07-03T09:46:40+00:00",
         # lastLogin is null, not "" — the IdP did not report a last sign-in,
         # which is a different fact from an empty one.
-        "created": "1720000000000", "lastLogin": None, "serviceAccount": False,
+        "lastLogin": None, "serviceAccount": False,
     }
     assert out["users"][1]["serviceAccount"] is True
+
+
+@pytest.mark.unit
+def test_timestamps_are_one_format_across_both_platforms():
+    """The same instant must render identically whichever IdP reported it.
+
+    Keycloak reports ``createdTimestamp`` as epoch-millis and authentik reports
+    ``date_joined`` as ISO-8601. Emitting whatever arrived gave the *same field*
+    two incompatible shapes depending on the target — on Keycloak a bare string
+    of digits, which no consumer can subtract from ``now`` without knowing both
+    the platform and the unit. Caught on a live Keycloak 26.0 realm.
+    """
+    kc = _Conn({_p(KEYCLOAK, "users"): [
+        {"id": "u1", "username": "alice", "enabled": True,
+         "createdTimestamp": 1720000000000},
+    ]})
+    ak = _Conn(
+        {_p(AUTHENTIK, "users"): {"results": [
+            {"pk": 1, "username": "alice", "is_active": True,
+             "date_joined": "2024-07-03T09:46:40Z"},
+        ]}},
+        platform=AUTHENTIK,
+    )
+    assert (
+        users.list_users(kc)["users"][0]["created"]
+        == users.list_users(ak)["users"][0]["created"]
+        == "2024-07-03T09:46:40+00:00"
+    )
 
 
 @pytest.mark.unit

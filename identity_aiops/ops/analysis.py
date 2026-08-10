@@ -30,7 +30,7 @@ from typing import Any
 from identity_aiops.ops import clients as client_ops
 from identity_aiops.ops import events as event_ops
 from identity_aiops.ops import users as user_ops
-from identity_aiops.ops._util import epoch_seconds, s
+from identity_aiops.ops._util import epoch_seconds, opt_ts, s
 from identity_aiops.platform import KEYCLOAK
 
 MAX_ROWS = 100
@@ -350,7 +350,7 @@ def stale_access_audit(
             if seen > 0:
                 svc_interactive.append({
                     "username": s(uname),
-                    "lastInteractiveLogin": s(u.get("lastLogin") or ""),
+                    "lastInteractiveLogin": opt_ts(u.get("lastLogin")),
                     "cause": "Service account with an interactive sign-in — a "
                     "human is using a machine identity",
                     "action": "Rotate its credential and move the human to a "
@@ -364,7 +364,7 @@ def stale_access_audit(
             if created and created < cutoff:
                 never.append({
                     "username": s(uname),
-                    "created": s(u.get("created") or ""),
+                    "created": opt_ts(u.get("created")),
                     "cause": f"Enabled account, no sign-in on record, older than "
                     f"{stale_days} days",
                     "action": "Confirm with the owner/manager, then disable_user "

@@ -18,6 +18,7 @@ from identity_aiops.ops._util import (
     is_service_account,
     num,
     opt_s,
+    opt_ts,
     pick,
     s,
     to_bool,
@@ -44,8 +45,8 @@ def norm_user(r: dict) -> dict:
         "username": opt_s(pick(r, "username", "name")),
         "email": opt_s(pick(r, "email")),
         "enabled": user_enabled(r),
-        "created": opt_s(pick(r, "createdTimestamp", "date_joined")),
-        "lastLogin": opt_s(pick(r, "last_login", "lastLogin")),
+        "created": opt_ts(pick(r, "createdTimestamp", "date_joined")),
+        "lastLogin": opt_ts(pick(r, "last_login", "lastLogin")),
         "serviceAccount": is_service_account(r),
     }
 
@@ -129,8 +130,8 @@ def user_sessions(conn: Any, user_id: str) -> dict:
             {
                 "id": opt_s(pick(r, "id", "uuid")),
                 "ip": opt_s(pick(r, "ipAddress", "last_ip")),
-                "started": opt_s(pick(r, "start", "expires")),
-                "lastAccess": opt_s(pick(r, "lastAccess", "last_used")),
+                "started": opt_ts(pick(r, "start", "expires")),
+                "lastAccess": opt_ts(pick(r, "lastAccess", "last_used")),
                 "clients": pick(r, "clients", default={}),
             }
             for r in rows
@@ -160,7 +161,7 @@ def _norm_credential(r: dict) -> dict:
         "id": opt_s(pick(r, "id", "pk")),
         "type": ctype,
         "label": opt_s(pick(r, "userLabel", "name")),
-        "created": opt_s(pick(r, "createdDate", "created")),
+        "created": opt_ts(pick(r, "createdDate", "created")),
         "confirmed": to_bool(pick(r, "confirmed", default=True)),
         # A credential whose type the IdP did not name cannot be counted as a
         # second factor — `None not in SECOND_FACTOR_TYPES` is False, which is

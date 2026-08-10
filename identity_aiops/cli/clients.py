@@ -15,6 +15,7 @@ import typer
 from identity_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    checked,
     cli_errors,
     console,
     double_confirm,
@@ -80,8 +81,8 @@ def clients_set_redirect_uris(
         return
     double_confirm("replace redirect URIs on client", client_id)
     console.print_json(json.dumps(
-        gov.update_client_redirect_uris(client_id=client_id, redirect_uris=list(uris),
-                                        target=target)
+        checked(gov.update_client_redirect_uris(client_id=client_id, redirect_uris=list(uris),
+                                        target=target))
     ))
 
 
@@ -104,4 +105,6 @@ def clients_rotate_secret(
             parameters={"client_id": client_id})
         return
     double_confirm("rotate the secret of client", client_id)
-    console.print_json(json.dumps(gov.rotate_client_secret(client_id=client_id, target=target)))
+    console.print_json(
+        json.dumps(checked(gov.rotate_client_secret(client_id=client_id, target=target)))
+    )

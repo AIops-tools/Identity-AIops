@@ -15,6 +15,7 @@ import typer
 from identity_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    checked,
     cli_errors,
     console,
     double_confirm,
@@ -104,7 +105,7 @@ def users_disable(
                         parameters={"user_id": user_id})
         return
     double_confirm("disable user", user_id)
-    console.print_json(json.dumps(gov.disable_user(user_id=user_id, target=target)))
+    console.print_json(json.dumps(checked(gov.disable_user(user_id=user_id, target=target))))
 
 
 @users_app.command("enable")
@@ -123,7 +124,7 @@ def users_enable(
                         parameters={"user_id": user_id})
         return
     double_confirm("enable user", user_id)
-    console.print_json(json.dumps(gov.enable_user(user_id=user_id, target=target)))
+    console.print_json(json.dumps(checked(gov.enable_user(user_id=user_id, target=target))))
 
 
 @users_app.command("revoke-sessions")
@@ -142,7 +143,9 @@ def users_revoke_sessions(
                         parameters={"user_id": user_id})
         return
     double_confirm("revoke all sessions for user", user_id)
-    console.print_json(json.dumps(gov.revoke_user_sessions(user_id=user_id, target=target)))
+    console.print_json(
+        json.dumps(checked(gov.revoke_user_sessions(user_id=user_id, target=target)))
+    )
 
 
 @users_app.command("require-reset")
@@ -168,5 +171,5 @@ def users_require_reset(
         return
     double_confirm(verb, user_id)
     console.print_json(
-        json.dumps(gov.require_password_reset(user_id=user_id, clear=clear, target=target))
+        json.dumps(checked(gov.require_password_reset(user_id=user_id, clear=clear, target=target)))
     )

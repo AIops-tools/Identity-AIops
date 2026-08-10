@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from identity_aiops.ops._util import as_obj, num, opt_s, pick, s, to_bool
+from identity_aiops.ops._util import as_obj, num, opt_s, opt_ts, pick, s, to_bool
 from identity_aiops.platform import KEYCLOAK
 
 
@@ -133,8 +133,8 @@ def client_sessions(conn: Any, client_id: str, max_results: int = 200) -> dict:
                 "id": opt_s(pick(r, "id", "uuid")),
                 "username": opt_s(pick(r, "username")),
                 "ip": opt_s(pick(r, "ipAddress")),
-                "started": opt_s(pick(r, "start")),
-                "lastAccess": opt_s(pick(r, "lastAccess")),
+                "started": opt_ts(pick(r, "start")),
+                "lastAccess": opt_ts(pick(r, "lastAccess")),
             }
             for r in rows[:requested]
         ]

@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.7.0 — 2026-08-10
+
+### Fixed
+- **The CLI reported a refused or failed write as a success.** Every governed write printed the twin's payload and exited **0** whatever it said, so the self-lockout refusal of `rotate-secret` — and a write against a user that does not exist — were indistinguishable from a landed change to a `&&` chain or a CI job. The dry-run path already exited 1, which made it worse: the preview was stricter than the write it previews. All seven call sites now route through a `checked()` helper that exits 1 on `{"error": ...}` and 2 on an undetermined outcome. Caught on a live Keycloak 26.0; an invariant test now fails if any future CLI command prints a governed result unchecked.
+- **Timestamps render as ISO-8601 UTC on both platforms.** `created`, `lastLogin`, session `started` / `lastAccess` and event `time` were passed through exactly as the identity provider sent them — Keycloak epoch-**milliseconds** as a string of digits (`"1786335328000"`), authentik ISO-8601 — so one field name carried two incompatible formats depending on the target, and on Keycloak it was not something a consumer could subtract from `now` without knowing both the platform and the unit. This tool exists to span a mixed estate, so the read surface now normalises; a missing value stays `null` rather than becoming the epoch. Found on a live Keycloak 26.0 realm.
+
 ## v0.6.0 — 2026-08-03
 
 ### Fixed

@@ -12,7 +12,7 @@ via ``s``.
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from identity_aiops.governance import opt_str, sanitize
@@ -131,3 +131,23 @@ def epoch_seconds(value: Any) -> float:
         return datetime.fromisoformat(text.replace("Z", "+00:00")).timestamp()
     except ValueError:
         return 0.0
+
+
+def opt_ts(value: Any) -> str | None:
+    """Render a timestamp as ISO-8601 UTC, or ``None`` when absent/unparseable.
+
+    The two platforms disagree about what a timestamp *is*: Keycloak sends
+    epoch-**milliseconds** (``1786335328000``) and authentik sends an ISO-8601
+    string. Emitting whichever arrived meant one field name carried two
+    incompatible formats depending on the target — and on Keycloak it was a
+    string of digits, which is not a timestamp a consumer can subtract from
+    ``now`` without first knowing the platform *and* the unit. This tool exists
+    to span a mixed estate, so the read surface normalises to one format.
+
+    ``None`` rather than ``""`` for a missing value: absent is not "the epoch",
+    and the caller must be able to tell the two apart.
+    """
+    seconds = epoch_seconds(value)
+    if seconds <= 0:
+        return None
+    return datetime.fromtimestamp(seconds, tz=UTC).isoformat(timespec="seconds")

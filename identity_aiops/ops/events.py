@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from identity_aiops.ops._util import as_obj, opt_s, pick, s
+from identity_aiops.ops._util import as_obj, opt_s, opt_ts, pick, s
 from identity_aiops.platform import KEYCLOAK
 
 # Normalized event types the analyses key on.
@@ -46,7 +46,7 @@ def norm_event(r: dict) -> dict:
     context = as_obj(r.get("context"))
     etype = opt_s(pick(r, "type", "action"))
     return {
-        "time": opt_s(pick(r, "time", "created")),
+        "time": opt_ts(pick(r, "time", "created")),
         "type": etype.upper() if etype is not None else None,
         "user": opt_s(
             pick(details, "username")
@@ -144,7 +144,7 @@ def admin_events(conn: Any, max_results: int = 200) -> dict:
             )
             matched = [
                 {
-                    "time": opt_s(pick(r, "time")),
+                    "time": opt_ts(pick(r, "time")),
                     "operation": opt_s(pick(r, "operationType")),
                     "resourceType": opt_s(pick(r, "resourceType")),
                     "resourcePath": opt_s(pick(r, "resourcePath")),
@@ -159,7 +159,7 @@ def admin_events(conn: Any, max_results: int = 200) -> dict:
             )
             matched = [
                 {
-                    "time": opt_s(pick(r, "created")),
+                    "time": opt_ts(pick(r, "created")),
                     "operation": opt_s(pick(r, "action")),
                     "resourceType": opt_s(
                         pick(as_obj(as_obj(r.get("context")).get("model")), "model_name")
