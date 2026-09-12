@@ -5,7 +5,7 @@
       "command": "uvx",
       "args": [
         "--from",
-        "identity-aiops==0.7.0",
+        "identity-aiops==0.8.0",
         "identity-aiops-mcp"
       ]
     }

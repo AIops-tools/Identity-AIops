@@ -17,7 +17,7 @@ installer:
 argument-hint: "[a user/client id, a realm, or describe your identity task]"
 allowed-tools:
   - Bash
-metadata: {"openclaw":{"requires":{"env":["IDENTITY_AIOPS_CONFIG"],"bins":["identity-aiops"],"config":["~/.identity-aiops/config.yaml","~/.identity-aiops/secrets.enc"]},"optional":{"env":["IDENTITY_AIOPS_MASTER_PASSWORD"]},"primaryEnv":"IDENTITY_AIOPS_CONFIG","homepage":"https://github.com/AIops-tools/Identity-AIops","emoji":"🔐","os":["macos","linux"]}}
+metadata: {"openclaw":{"requires":{"anyBins":["identity-aiops","uvx"]},"optional":{"env":["IDENTITY_AIOPS_CONFIG","IDENTITY_AIOPS_MASTER_PASSWORD"]},"homepage":"https://github.com/AIops-tools/Identity-AIops","emoji":"🔐","os":["macos","linux"]}}
 compatibility: >
   Standalone, self-governed identity-provider operations across Keycloak (admin REST API /admin/realms/{realm}/..., OAuth2 client-credentials grant against the realm token endpoint with automatic refresh-on-401) and authentik (API v3 /api/v3/..., long-lived API token as a Bearer header). Each target in the config names its own platform, and a name-keyed platform registry selects the API shape, so the same tools work on both and one config can span a mixed estate. The governance harness (audit, policy, token/runaway budget, undo, risk-tiers) is bundled in the package — no external skill-family dependency.
   All write operations are audited to a local SQLite DB under ~/.identity-aiops/ (relocatable via IDENTITY_AIOPS_HOME).

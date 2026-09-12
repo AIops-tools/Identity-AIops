@@ -1,0 +1,20 @@
+{
+  "name": "@aiops-tools/identity-aiops",
+  "version": "0.8.0",
+  "description": "Governed Keycloak + authentik identity ops: users, events, clients, MFA, RCA. 29 tools.",
+  "private": true,
+  "license": "MIT",
+  "homepage": "https://github.com/AIops-tools/Identity-AIops",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AIops-tools/Identity-AIops.git"
+  },
+  "openclaw": {
+    "compat": {
+      "pluginApi": ">=2026.3.24-beta.2"
+    },
+    "build": {
+      "openclawVersion": "2026.3.24-beta.2"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "id": "identity-aiops",
+  "name": "Identity AIops",
+  "description": "Governed Keycloak + authentik identity ops: users, events, clients, MFA, RCA. 29 tools.",
+  "skills": [
+    "./skills"
+  ],
+  "mcpServers": {
+    "identity-aiops": {
+      "transport": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "identity-aiops==0.8.0",
+        "identity-aiops-mcp"
+      ]
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {}
+  }
+}
