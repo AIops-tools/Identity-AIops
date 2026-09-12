@@ -79,6 +79,13 @@ identity-aiops init       # wizard: pick platform (keycloak/authentik) + encrypt
 identity-aiops doctor
 ```
 
+Or as an OpenClaw plugin, which installs this skill and its MCP server together:
+
+```bash
+openclaw plugins install clawhub:@aiops-tools/identity-aiops
+openclaw skills info identity-aiops          # expect: Visible to model: yes
+```
+
 ## When to Use This Skill
 
 - Get a one-shot snapshot (`overview` / `realm_info` / `user_count`)
