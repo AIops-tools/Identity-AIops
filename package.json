@@ -1,6 +1,6 @@
 {
-  "name": "@aiops-tools/identity-aiops",
-  "version": "0.8.4",
+  "name": "@zw008/identity-aiops",
+  "version": "0.8.2",
   "description": "Governed Keycloak + authentik identity ops: users, events, clients, MFA, RCA. 29 tools.",
   "private": true,
   "license": "MIT",

@@ -96,7 +96,7 @@ The same bundle is published on [ClawHub](https://clawhub.ai/plugins), where one
 install delivers the skill and its MCP server together:
 
 ```bash
-openclaw plugins install clawhub:@aiops-tools/identity-aiops
+openclaw plugins install clawhub:@zw008/identity-aiops
 openclaw skills info identity-aiops          # expect: Visible to model: yes
 ```
 
