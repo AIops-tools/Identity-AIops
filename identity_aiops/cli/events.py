@@ -8,6 +8,7 @@ import typer
 
 from identity_aiops.cli._common import (
     TargetOption,
+    audited,
     cli_errors,
     get_connection,
     print_result,
@@ -15,6 +16,7 @@ from identity_aiops.cli._common import (
 
 
 @cli_errors
+@audited
 def events_cmd(
     event_type: Annotated[
         str | None,

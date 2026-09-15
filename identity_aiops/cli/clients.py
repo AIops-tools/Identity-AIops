@@ -15,6 +15,7 @@ import typer
 from identity_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    audited,
     checked,
     cli_errors,
     console,
@@ -34,6 +35,7 @@ clients_app = typer.Typer(
 
 @clients_app.command("list")
 @cli_errors
+@audited
 def clients_list(
     limit: Annotated[int, typer.Option("--limit", "-n", help="Max clients")] = 200,
     target: TargetOption = None,
@@ -47,6 +49,7 @@ def clients_list(
 
 @clients_app.command("show")
 @cli_errors
+@audited
 def clients_show(
     client_id: Annotated[str, typer.Argument(help="Client internal id (from 'clients list')")],
     target: TargetOption = None,

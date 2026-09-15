@@ -15,6 +15,7 @@ import typer
 from identity_aiops.cli._common import (
     DryRunOption,
     TargetOption,
+    audited,
     checked,
     cli_errors,
     console,
@@ -34,6 +35,7 @@ users_app = typer.Typer(
 
 @users_app.command("list")
 @cli_errors
+@audited
 def users_list(
     search: Annotated[
         str | None, typer.Option("--search", "-s", help="Search by username/email")
@@ -50,6 +52,7 @@ def users_list(
 
 @users_app.command("show")
 @cli_errors
+@audited
 def users_show(
     user_id: Annotated[str, typer.Argument(help="User id (from 'users list')")],
     target: TargetOption = None,
@@ -63,6 +66,7 @@ def users_show(
 
 @users_app.command("sessions")
 @cli_errors
+@audited
 def users_sessions(
     user_id: Annotated[str, typer.Argument(help="User id (from 'users list')")],
     target: TargetOption = None,
@@ -76,6 +80,7 @@ def users_sessions(
 
 @users_app.command("credentials")
 @cli_errors
+@audited
 def users_credentials(
     user_id: Annotated[str, typer.Argument(help="User id (from 'users list')")],
     target: TargetOption = None,
