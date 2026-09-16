@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.8.4 — 2026-09-16
 
 ### Fixed
 - Connections opened by the CLI were never closed at exit. `cli/_common.get_connection` builds

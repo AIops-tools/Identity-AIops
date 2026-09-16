@@ -2,7 +2,7 @@
   "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
   "name": "identity-aiops",
   "displayName": "Identity AIops",
-  "version": "0.8.3",
+  "version": "0.8.4",
   "description": "Governed Keycloak + authentik identity ops: users, events, clients, MFA, RCA. 29 tools.",
   "author": {
     "name": "Wei Zhou",
