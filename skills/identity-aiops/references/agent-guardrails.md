@@ -84,12 +84,14 @@ that audit are unaffected.
 
 ## What still needs a prompt
 
-⚠️ **Do not read priority off list position.** That applies to `client_misconfig_audit` only. `login_failure_rca` does sort its findings worst-first, but they carry neither `rank` nor `severity`, so its order is not stated anywhere in the payload. No entry carries a `rank` or a
-`severity`, so nothing in the payload states which one matters most. Make the model weigh
-every entry's measured number and say which one it acted on, rather than treating the first
-one as the headline.
-
 These are model-behaviour problems the harness cannot fix from the outside.
+
+⚠️ **`login_failure_rca`'s order is not stated in its output.** It does sort its findings
+worst-first, but they carry neither a `rank` nor a `severity`, so make the model weigh each
+finding's numbers rather than trust the order. `client_misconfig_audit` is different: every
+one of its findings carries a `severity`, and the `riskScore` it ranks clients on is the sum
+of those weights, so that ordering can be checked against the payload.
+
 Copy this into your agent's system prompt:
 
 ```text
