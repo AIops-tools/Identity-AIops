@@ -32,7 +32,7 @@ What the tool *does* guarantee is that you can always see what happened:
 | "Don't invent a value when a field is missing" | A field the IdP did not return comes back as `null`, never as `""`. Absent and empty are distinguishable in the payload — a `lastLogin` of `null` means "no sign-in on record", not "signed in at an empty time". |
 | "Tell me if the output was cut off" | Every listing returns `{"users": [...], "returned": N, "limit": L, "truncated": true/false}` (same shape for `events`, `groups`, `members`, `clients`, `sessions`, `identityProviders`). Truncation is measured — one extra row is fetched — not guessed from a length coincidence. |
 | "Tell me if the analysis only saw part of the data" | The four analyses echo `inputsTruncated` / `feedTruncated`, and `truncated` + `maxRows` when a finding list was capped. The `*Count` fields are always the full totals. |
-| "Make it show the number it judged on" | `client_misconfig_audit` ranks clients by `riskScore` — the summed severity weights, echoed as `severityWeights` so the score is recomputable — and every finding carries its own `severity`. `login_failure_rca` findings each carry the counts that tripped them (`failures`, `distinctUsers`, `distinctIps`) next to the threshold they crossed. |
+| "Make it show the number it judged on" | `client_misconfig_audit` ranks clients by `riskScore` — the summed severity weights, echoed as `severityWeights` so the score is recomputable — and every finding carries its own `severity`. `login_failure_rca` findings each carry the counts that tripped them (`failures`, `distinctUsers`, `distinctIps`); the thresholds they were compared against are reported separately under `thresholds`, not on the finding. |
 | "Confirm before anything destructive" | Write CLI commands have `--dry-run` plus double confirmation. |
 | "Log what you did" | Every call is audited to `~/.identity-aiops/audit.db` regardless of what the model says it did. |
 
@@ -87,9 +87,9 @@ that audit are unaffected.
 These are model-behaviour problems the harness cannot fix from the outside.
 
 ⚠️ **`login_failure_rca`'s order is not on one comparable quantity.** It does sort its findings
-worst-first, but the sort key falls back from `failures` to `distinctUsers`, so a
-`lockout-storm` finding (which has no `failures`) is ranked by a user count against another
-finding's failure count. Its findings carry neither a `rank` nor a `severity`. Weigh each
+worst-first, but the sort key falls back from `failures` to `distinctUsers`, so the two storm findings
+(`lockout-storm` and `expired-credential-storm`, neither of which has a `failures` key) are
+ranked by a user count against another finding's failure count. Its findings carry neither a `rank` nor a `severity`. Weigh each
 finding's own counts rather than its position. `client_misconfig_audit` is different: its
 `riskScore` ordering is stated in the payload and can be rechecked.
 
@@ -111,12 +111,12 @@ TOOL USE
   do not retry it, and follow the alternative the error names.
 
 READING RESULTS
-- `login_failure_rca` findings are not ranked on one comparable quantity and carry no rank.
-  Weigh each finding's own counts and say which one you acted on; never treat the first as
-  the headline.
 - Read the whole result before concluding. Listings return "returned", "limit",
   and "truncated". If "truncated" is true, say so and re-run with a higher
   limit instead of treating the partial result as complete.
+- `login_failure_rca` findings are not ranked on one comparable quantity and carry no rank.
+  Weigh each finding's own counts and say which one you acted on; never treat the first as
+  the headline.
 - The analyses return "inputsTruncated" / "feedTruncated". When either is true,
   every count is a lower bound — a threshold may have gone unreached only
   because the events that would have reached it were never fetched. Never

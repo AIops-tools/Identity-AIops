@@ -126,7 +126,8 @@ server; the CLI covers the reads and the writes. Every CLI write accepts
 
 1. `identity-aiops overview` → how big is the failed-login feed right now, and
    is this one account or the whole realm?
-2. MCP `login_failure_rca` → findings ranked with numbers, separating password
+2. MCP `login_failure_rca` → findings carrying their counts (the ordering is not on one
+   comparable quantity — see `references/agent-guardrails.md`), separating password
    **spray** from one IP, **targeted** brute-force on one account, a client
    failing with credential errors (a rotated secret not deployed), an
    expired-credential storm, and a lockout storm.
