@@ -32,7 +32,7 @@ What the tool *does* guarantee is that you can always see what happened:
 | "Don't invent a value when a field is missing" | A field the IdP did not return comes back as `null`, never as `""`. Absent and empty are distinguishable in the payload — a `lastLogin` of `null` means "no sign-in on record", not "signed in at an empty time". |
 | "Tell me if the output was cut off" | Every listing returns `{"users": [...], "returned": N, "limit": L, "truncated": true/false}` (same shape for `events`, `groups`, `members`, `clients`, `sessions`, `identityProviders`). Truncation is measured — one extra row is fetched — not guessed from a length coincidence. |
 | "Tell me if the analysis only saw part of the data" | The four analyses echo `inputsTruncated` / `feedTruncated`, and `truncated` + `maxRows` when a finding list was capped. The `*Count` fields are always the full totals. |
-| "Preserve the ordering / tell me what's most urgent" | `client_misconfig_audit` ranks by `riskScore` with the severity weights in the payload; `login_failure_rca` sorts findings worst-first and every finding carries the numbers that tripped it. Priority is in the payload, not implied by list position. |
+| "Tell me which client is riskiest" | `client_misconfig_audit` ranks clients by `riskScore` — the summed severity weights — and both that score and each finding's `severity` are in the payload, so the ordering can be checked rather than trusted. |
 | "Confirm before anything destructive" | Write CLI commands have `--dry-run` plus double confirmation. |
 | "Log what you did" | Every call is audited to `~/.identity-aiops/audit.db` regardless of what the model says it did. |
 
@@ -83,6 +83,11 @@ that audit are unaffected.
 `undo_apply` — the normalized rows use the same field names on both platforms.
 
 ## What still needs a prompt
+
+⚠️ **Do not read priority off list position.** That applies to `client_misconfig_audit` only. `login_failure_rca` does sort its findings worst-first, but they carry neither `rank` nor `severity`, so its order is not stated anywhere in the payload. No entry carries a `rank` or a
+`severity`, so nothing in the payload states which one matters most. Make the model weigh
+every entry's measured number and say which one it acted on, rather than treating the first
+one as the headline.
 
 These are model-behaviour problems the harness cannot fix from the outside.
 Copy this into your agent's system prompt:
