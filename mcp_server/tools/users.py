@@ -58,7 +58,8 @@ def user_count(target: Optional[str] = None) -> dict:
 @mcp.tool()
 @governed_tool(risk_level="low")
 @tool_errors("dict")
-def user_sessions(user_id: str, target: Optional[str] = None) -> dict:
+def user_sessions(user_id: str, max_results: int = 200,
+                  target: Optional[str] = None) -> dict:
     """[READ] A user's active sessions (id, IP, start/last access, clients).
 
     Args:
@@ -68,7 +69,7 @@ def user_sessions(user_id: str, target: Optional[str] = None) -> dict:
     Returns {"sessions": [...], "returned": N, "truncated": false} — the IdP
     returns the user's whole session set, so this listing is always complete.
     """
-    return ops.user_sessions(_get_connection(target), user_id)
+    return ops.user_sessions(_get_connection(target), user_id, max_results)
 
 
 @mcp.tool()

@@ -115,7 +115,7 @@ def user_count(conn: Any) -> dict:
         return {"error": s(exc, 200)}
 
 
-def user_sessions(conn: Any, user_id: str) -> dict:
+def user_sessions(conn: Any, user_id: str, max_results: int = 200) -> dict:
     """[READ] A user's active sessions (id, IP, start/last-access, client).
 
     The IdP returns a user's whole session set, so nothing is ever dropped
@@ -125,7 +125,15 @@ def user_sessions(conn: Any, user_id: str) -> dict:
     anywhere) instead of wondering whether it was clipped.
     """
     try:
-        rows = conn.platform.rows(conn.get(conn.path("user_sessions", user_id=user_id)))
+        # One more than asked for, exactly as list_users does, so `truncated` is measured.
+        # It used to be hardcoded False with no limit at all — and this is the read a
+        # revocation decision is taken on ("is this user signed in anywhere else?").
+        requested = max(1, int(max_results))
+        params = {"max": requested + 1} if _is_keycloak(conn) else {"page_size": requested + 1}
+        rows = conn.platform.rows(
+            conn.get(conn.path("user_sessions", user_id=user_id), params=params))
+        truncated = len(rows) > requested
+        rows = rows[:requested]
         sessions = [
             {
                 "id": opt_s(pick(r, "id", "uuid")),
@@ -140,7 +148,8 @@ def user_sessions(conn: Any, user_id: str) -> dict:
             "userId": s(user_id),
             "sessions": sessions,
             "returned": len(sessions),
-            "truncated": False,
+            "limit": requested,
+            "truncated": truncated,
         }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200), "userId": s(user_id)}
@@ -179,7 +188,13 @@ def user_credentials(conn: Any, user_id: str) -> dict:
             "userId": s(user_id),
             "credentials": creds,
             "returned": len(creds),
-            "truncated": False,
+            # The IdP is not asked for a bound on this endpoint, so completeness is
+            # unknown — not false. Claiming a measurement never taken is the defect
+            # this line's truncation contract exists to prevent.
+            "limit": None,
+            "truncated": None,
+            "note": "Read without a bound: whether the IdP returned every credential "
+                    "is not measured here.",
             "secondFactors": sum(1 for c in creds if c["secondFactor"] and c["confirmed"]),
         }
     except Exception as exc:  # noqa: BLE001 — report as partial

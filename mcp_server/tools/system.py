@@ -37,7 +37,8 @@ def realm_info(target: Optional[str] = None) -> dict:
 @mcp.tool()
 @governed_tool(risk_level="low")
 @tool_errors("dict")
-def list_identity_providers(target: Optional[str] = None) -> dict:
+def list_identity_providers(max_results: int = 200,
+                            target: Optional[str] = None) -> dict:
     """[READ] Federated identity providers / sources configured on the IdP.
 
     Args:
@@ -46,4 +47,4 @@ def list_identity_providers(target: Optional[str] = None) -> dict:
     Returns {"identityProviders": [...], "returned": N, "truncated": false} —
     the IdP returns the complete set, so this listing is never clipped.
     """
-    return realm_ops.list_identity_providers(_get_connection(target))
+    return realm_ops.list_identity_providers(_get_connection(target), max_results)

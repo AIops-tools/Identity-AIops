@@ -3,6 +3,17 @@
 ## Unreleased
 
 ### Fixed
+- Four listings claimed a completeness nobody had measured. `user_sessions`,
+  `user_credentials`, `client_session_stats` and `list_identity_providers` returned a
+  hardcoded `truncated: false` with no `limit` key and without asking the IdP for one
+  row more than requested. `user_sessions` is the read a revocation decision is taken
+  on — "is this account signed in anywhere else?" — so a clipped list read as an
+  all-clear. `user_sessions` and `list_identity_providers` now measure, the same way
+  `list_users` already did, and take `max_results`. The other two send no bound, so
+  they report `truncated: null` with a note rather than an unmeasured `false`.
+  The existing test asserted the old behaviour as the contract, reasoning that
+  "this list is complete" is what lets a caller revoke on it — which is the harm, not
+  the justification; it has been rewritten.
 - `agent-guardrails.md` extended `client_misconfig_audit`'s real guarantee — it does rank
   by `riskScore`, which is in the payload together with the `severityWeights` that make it
   recomputable — to `login_failure_rca`, whose findings carry neither a `rank` nor a

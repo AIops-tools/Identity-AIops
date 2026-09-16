@@ -173,7 +173,13 @@ def client_session_stats(conn: Any) -> dict:
         return {
             "clients": stats,
             "returned": len(stats),
-            "truncated": False,
+            # Keycloak returns this aggregate whole and it takes no bound, so there is
+            # nothing to measure — but an unmeasured `false` is still a claim, and the
+            # honest answer to "was this cut off?" here is "not measured".
+            "limit": None,
+            "truncated": None,
+            "note": "Read without a bound: whether the IdP returned every client is "
+                    "not measured here.",
         }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}

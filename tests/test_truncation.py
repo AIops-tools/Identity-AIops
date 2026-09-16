@@ -184,25 +184,47 @@ def test_client_sessions_announce_truncation():
 
 
 @pytest.mark.unit
-@pytest.mark.parametrize(
-    "call",
-    [
-        lambda c: users.user_sessions(c, "u1"),
-        lambda c: users.user_credentials(c, "u1"),
-        lambda c: clients.client_session_stats(c),
-        lambda c: realm.list_identity_providers(c),
-    ],
-)
-def test_unbounded_listings_state_completeness_explicitly(call):
-    """These reads have no limit — nothing is ever dropped.
+@pytest.mark.parametrize("call", [
+    lambda c: users.user_sessions(c, "u1"),
+    lambda c: realm.list_identity_providers(c),
+])
+def test_measured_listings_report_a_limit_and_a_measured_flag(call):
+    """These two ask the IdP for one row more than requested, exactly as list_users does.
 
-    They still say ``truncated: false`` rather than leaving it out. "This list
-    is complete" is what lets a caller act on it (revoke, or conclude the user
-    is signed in nowhere) instead of wondering whether it was clipped.
+    They used to hardcode ``truncated: false`` with no ``limit`` at all — and the
+    previous version of this test asserted that as the contract, reasoning that
+    "this list is complete" is what lets a caller revoke on it. Nothing had measured
+    completeness, so that reasoning is precisely the harm.
     """
     out = call(_Conn({}))
-    assert out["truncated"] is False
-    assert out["returned"] == 0
+    assert out["truncated"] is False and out["returned"] == 0
+    assert out["limit"] == 200
+
+
+@pytest.mark.unit
+def test_a_measured_listing_reports_truncation_when_the_idp_has_more():
+    conn = _Conn({_p(KEYCLOAK, "user_sessions", user_id="u1"):
+                  [{"id": f"s{i}"} for i in range(4)]})
+    out = users.user_sessions(conn, "u1", max_results=3)
+    assert out["returned"] == 3 and out["truncated"] is True
+    # and it really asked the IdP for one more than it wanted
+    assert conn.last_params == {"max": 4}
+
+
+@pytest.mark.unit
+@pytest.mark.parametrize("call", [
+    lambda c: users.user_credentials(c, "u1"),
+    lambda c: clients.client_session_stats(c),
+])
+def test_unbounded_listings_say_completeness_was_not_measured(call):
+    """No bound is sent on these endpoints, so `truncated` is null — not false.
+
+    An unmeasured ``false`` is still a claim, and it is the claim a caller acts on.
+    """
+    out = call(_Conn({}))
+    assert out["truncated"] is None, "unmeasured completeness must not read as complete"
+    assert out["limit"] is None
+    assert "not measured" in out["note"]
 
 
 # ── analyses: capped finding lists and clipped inputs ───────────────────────

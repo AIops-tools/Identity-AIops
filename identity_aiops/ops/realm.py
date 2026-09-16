@@ -53,14 +53,18 @@ def realm_info(conn: Any) -> dict:
         return {"error": s(exc, 200)}
 
 
-def list_identity_providers(conn: Any) -> dict:
+def list_identity_providers(conn: Any, max_results: int = 200) -> dict:
     """[READ] Federated identity providers / sources configured on the IdP.
 
     The IdP returns the complete set (no limit), so the envelope states
     ``truncated: false`` rather than leaving the caller to assume it.
     """
     try:
-        rows = conn.platform.rows(conn.get(conn.path("identity_providers")))
+        requested = max(1, int(max_results))
+        params = {"max": requested + 1} if _is_keycloak(conn) else {"page_size": requested + 1}
+        rows = conn.platform.rows(conn.get(conn.path("identity_providers"), params=params))
+        truncated = len(rows) > requested
+        rows = rows[:requested]
         idps = [
             {
                 "id": opt_s(pick(r, "internalId", "pk", "alias")),
@@ -73,7 +77,8 @@ def list_identity_providers(conn: Any) -> dict:
         return {
             "identityProviders": idps,
             "returned": len(idps),
-            "truncated": False,
+            "limit": requested,
+            "truncated": truncated,
         }
     except Exception as exc:  # noqa: BLE001 — report as partial
         return {"error": s(exc, 200)}
