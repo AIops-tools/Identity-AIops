@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Connections opened by the CLI were never closed at exit. `cli/_common.get_connection` builds
+  a connection manager, returns only the connection and drops the manager, and the registry the
+  atexit hook reads held managers weakly — so the manager was collected and the hook found
+  nothing to close. Nothing server-side leaked, because closing a local socket is all this
+  tool's teardown does, but the hook could not tell "nothing to close" from "everything was
+  collected", and a teardown that ever does more would have been skipped just as silently. The
+  registry now holds a strong reference, pinned by a test that drops the manager the way the
+  CLI does.
+
 ## v0.8.3 — 2026-09-15
 
 ### Fixed

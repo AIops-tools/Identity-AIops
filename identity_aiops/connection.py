@@ -30,7 +30,6 @@ import atexit
 import base64
 import json
 import logging
-import weakref
 from typing import Any
 
 import httpx
@@ -41,9 +40,13 @@ _log = logging.getLogger("identity-aiops.connection")
 
 _TIMEOUT = 30.0
 
-# Every live ConnectionManager registers here (weakly) so the atexit hook can
-# close any cached httpx clients when the interpreter shuts down.
-_MANAGERS: weakref.WeakSet = weakref.WeakSet()
+# Every live ConnectionManager registers here so the atexit hook can close any
+# cached httpx clients when the interpreter shuts down. The reference is strong
+# on purpose: the CLI builds a manager, returns only the connection and drops the
+# manager (cli/_common.get_connection), so a weak registry would collect it and
+# leave the hook nothing to close. Today that only skips a local socket close —
+# but it is the same silence that hides a missing server-side teardown.
+_MANAGERS: set[ConnectionManager] = set()
 
 
 def _close_all_managers() -> None:
