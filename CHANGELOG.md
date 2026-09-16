@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.8.5 — 2026-09-17
 
 ### Fixed
 - Four listings claimed a completeness nobody had measured. `user_sessions`,
