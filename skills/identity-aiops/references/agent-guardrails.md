@@ -93,7 +93,7 @@ ranked by a user count against another finding's failure count. Its findings car
 finding's own counts rather than its position. `client_misconfig_audit` is different: its
 `riskScore` ordering is stated in the payload and can be rechecked.
 
-Copy this into your agent's system prompt:
+Recommended setup for a local model (adapt it to your agent client):
 
 ```text
 You operate a Keycloak or authentik identity provider through the
