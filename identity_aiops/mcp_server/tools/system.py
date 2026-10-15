@@ -3,9 +3,9 @@
 from typing import Optional
 
 from identity_aiops.governance import governed_tool
+from identity_aiops.mcp_server._shared import _get_connection, mcp, tool_errors
 from identity_aiops.ops import overview as overview_ops
 from identity_aiops.ops import realm as realm_ops
-from mcp_server._shared import _get_connection, mcp, tool_errors
 
 
 @mcp.tool()

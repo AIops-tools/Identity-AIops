@@ -100,7 +100,7 @@ def users_disable(
     dry_run: DryRunOption = False,
 ) -> None:
     """Disable a user (blocks sign-in; sessions stay — revoke separately)."""
-    from mcp_server.tools import writes as gov
+    from identity_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         # Through the governed call: disable_user is self-lockout guarded, so a
@@ -121,7 +121,7 @@ def users_enable(
     dry_run: DryRunOption = False,
 ) -> None:
     """Re-enable a user (high risk: reverses containment)."""
-    from mcp_server.tools import writes as gov
+    from identity_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         dry_run_preview(gov.enable_user(user_id=user_id, dry_run=True, target=target),
@@ -140,7 +140,7 @@ def users_revoke_sessions(
     dry_run: DryRunOption = False,
 ) -> None:
     """Revoke all of a user's sessions (irreversible)."""
-    from mcp_server.tools import writes as gov
+    from identity_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         dry_run_preview(gov.revoke_user_sessions(user_id=user_id, dry_run=True, target=target),
@@ -164,7 +164,7 @@ def users_require_reset(
     dry_run: DryRunOption = False,
 ) -> None:
     """Require a password reset at next sign-in (Keycloak required actions)."""
-    from mcp_server.tools import writes as gov
+    from identity_aiops.mcp_server.tools import writes as gov
 
     verb = "clear password-reset requirement" if clear else "require password reset"
     if dry_run:

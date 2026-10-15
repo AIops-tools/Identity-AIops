@@ -28,10 +28,10 @@ dev = [
 
 [project.scripts]
 identity-aiops = "identity_aiops.cli:app"
-identity-aiops-mcp = "mcp_server.server:main"
+identity-aiops-mcp = "identity_aiops.mcp_server.server:main"
 
 [tool.hatch.build.targets.wheel]
-packages = ["identity_aiops", "mcp_server"]
+packages = ["identity_aiops"]
 
 [tool.ruff]
 line-length = 100
@@ -48,7 +48,7 @@ select = ["E", "F", "I", "N", "W", "UP"]
 # MCP server files are reflected by FastMCP/Pydantic; PEP 604 unions (X | None)
 # crash on older mcp/pydantic, so they intentionally use Optional[X] (and
 # typing.List where a reflected list parameter needs it).
-"mcp_server/**/*.py" = ["UP007", "UP045", "UP006", "UP035"]
+"identity_aiops/mcp_server/**/*.py" = ["UP007", "UP045", "UP006", "UP035"]
 # The MCP entry keeps an explicit Python-version guard even though the declared
 # minimum is already 3.11.
 "identity_aiops/cli/_root.py" = ["UP036"]

@@ -35,7 +35,7 @@ def _kp(resource, **fmt):
 def wire_conn(monkeypatch):
     def _install(responses, platform=KEYCLOAK):
         conn = _Conn(responses, platform=platform)
-        from mcp_server.tools import analysis as tools
+        from identity_aiops.mcp_server.tools import analysis as tools
         monkeypatch.setattr(tools, "_get_connection", lambda target=None: conn)
         return conn
     return _install
@@ -43,7 +43,7 @@ def wire_conn(monkeypatch):
 
 @pytest.mark.unit
 def test_login_failure_rca_tool_flags_password_spray(wire_conn):
-    from mcp_server.tools import analysis as tools
+    from identity_aiops.mcp_server.tools import analysis as tools
 
     # 25 failures from one IP against 6 distinct users → password spray.
     events = [
@@ -61,7 +61,7 @@ def test_login_failure_rca_tool_flags_password_spray(wire_conn):
 
 @pytest.mark.unit
 def test_client_misconfig_audit_tool_ranks_findings(wire_conn):
-    from mcp_server.tools import analysis as tools
+    from identity_aiops.mcp_server.tools import analysis as tools
 
     wire_conn({_kp("clients"): [
         {"id": "c1", "clientId": "spa", "enabled": True, "publicClient": True,
@@ -76,7 +76,7 @@ def test_client_misconfig_audit_tool_ranks_findings(wire_conn):
 
 @pytest.mark.unit
 def test_stale_access_audit_tool_flags_idle_user(wire_conn):
-    from mcp_server.tools import analysis as tools
+    from identity_aiops.mcp_server.tools import analysis as tools
 
     # An enabled user last seen long ago (authentik lastLogin on the row).
     wire_conn(
@@ -98,7 +98,7 @@ def test_stale_access_audit_tool_flags_idle_user(wire_conn):
 
 @pytest.mark.unit
 def test_mfa_coverage_analysis_tool_reports_gap(wire_conn):
-    from mcp_server.tools import analysis as tools
+    from identity_aiops.mcp_server.tools import analysis as tools
 
     wire_conn({
         _kp("users"): [
@@ -116,12 +116,12 @@ def test_mfa_coverage_analysis_tool_reports_gap(wire_conn):
     assert "bob" in out["usersWithoutMfa"]
 
 
-# ── mcp_server/_shared internals ─────────────────────────────────────────────
+# ── identity_aiops/mcp_server/_shared internals ─────────────────────────────────────────────
 
 
 @pytest.mark.unit
 def test_tool_errors_sanitizes_generic_and_passes_known(monkeypatch):
-    from mcp_server import _shared
+    from identity_aiops.mcp_server import _shared
 
     @_shared.tool_errors("dict")
     def _generic():
@@ -148,7 +148,7 @@ def test_tool_errors_sanitizes_generic_and_passes_known(monkeypatch):
 @pytest.mark.unit
 def test_shared_get_connection_lazily_builds_manager(monkeypatch, tmp_path):
     from identity_aiops import config as config_mod
-    from mcp_server import _shared
+    from identity_aiops.mcp_server import _shared
 
     cfg_file = tmp_path / "config.yaml"
     cfg_file.write_text(

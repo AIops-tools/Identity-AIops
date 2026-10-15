@@ -76,7 +76,7 @@ authentik REST API endpoints. No post-install scripts or background services.
 ## Static Analysis
 
 ```bash
-uvx bandit -r identity_aiops/ mcp_server/
+uvx bandit -r identity_aiops/
 uv run ruff check .
 ```
 

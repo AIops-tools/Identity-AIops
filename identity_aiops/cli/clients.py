@@ -72,7 +72,7 @@ def clients_set_redirect_uris(
     dry_run: DryRunOption = False,
 ) -> None:
     """Replace a client's redirect-URI list (high risk)."""
-    from mcp_server.tools import writes as gov
+    from identity_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         dry_run_preview(
@@ -97,7 +97,7 @@ def clients_rotate_secret(
     dry_run: DryRunOption = False,
 ) -> None:
     """Rotate a client's secret (irreversible, high risk)."""
-    from mcp_server.tools import writes as gov
+    from identity_aiops.mcp_server.tools import writes as gov
 
     if dry_run:
         # Through the governed call: rotate_client_secret is self-lockout guarded,

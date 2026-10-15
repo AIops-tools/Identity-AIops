@@ -124,9 +124,9 @@ def test_real_write_tool_persists_priorstate_undo(gov_home, monkeypatch):
     """End-to-end through a REAL product write tool: disable_user must capture
     the user's prior enabled state before mutating and persist the
     restore-undo (enable_user) on disk."""
+    from identity_aiops.mcp_server.tools import writes as gov
     from identity_aiops.ops import users as user_ops
     from identity_aiops.platform import KEYCLOAK, get_platform
-    from mcp_server.tools import writes as gov
 
     conn = MagicMock(name="conn")
     conn.target.platform = KEYCLOAK

@@ -17,8 +17,8 @@ is the agent's judgement or the connecting account's permissions, not the tool's
 from typing import Any, List, Optional  # noqa: UP035 — FastMCP reflects List
 
 from identity_aiops.governance import governed_tool
+from identity_aiops.mcp_server._shared import _get_connection, mcp, tool_errors
 from identity_aiops.ops import writes as ops
-from mcp_server._shared import _get_connection, mcp, tool_errors
 
 # ── undo descriptors (built from the fetched before-state) ──────────────────
 

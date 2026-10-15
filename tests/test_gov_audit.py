@@ -2,7 +2,7 @@
 
 Portable across the whole tool line: references ONLY
 ``identity_aiops.governance.audit`` and binds state to an isolated home via
-``IDENTITY_AIOPS_HOME``. No ops / cli / connection / mcp_server imports.
+``IDENTITY_AIOPS_HOME``. No ops / cli / connection / identity_aiops.mcp_server imports.
 
 Exercises row writes with every column, query filters, stats aggregation,
 size-based rotation + archive cleanup, permission hardening, in-place column

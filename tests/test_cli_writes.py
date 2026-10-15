@@ -1,7 +1,7 @@
 """CLI confirmed-write path — past dry-run, through governance, onto disk.
 
 The CLI write commands delegate real execution to the ``@governed_tool``
-functions in ``mcp_server.tools``. These tests drive ``users disable`` PAST
+functions in ``identity_aiops.mcp_server.tools``. These tests drive ``users disable`` PAST
 the dry-run branch and the double-confirm prompts and assert the call really
 went through the governed path (audit row on disk) — the regression test for
 the "CLI writes were unaudited" line-wide fix.
@@ -36,8 +36,8 @@ def gov_home(tmp_path, monkeypatch):
 @pytest.fixture
 def idp_conn(monkeypatch):
     """A fake Keycloak connection wired into the governed write module."""
+    from identity_aiops.mcp_server.tools import writes as gov
     from identity_aiops.ops import users as user_ops
-    from mcp_server.tools import writes as gov
 
     conn = MagicMock(name="conn")
     conn.target.platform = KEYCLOAK

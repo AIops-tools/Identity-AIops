@@ -35,9 +35,9 @@ def gov_home(tmp_path, monkeypatch):
 
 @pytest.fixture
 def idp_conn(monkeypatch):
+    from identity_aiops.mcp_server.tools import writes as gov
     from identity_aiops.ops import clients as client_ops
     from identity_aiops.ops import users as user_ops
-    from mcp_server.tools import writes as gov
 
     conn = MagicMock(name="conn")
     conn.target.platform = KEYCLOAK

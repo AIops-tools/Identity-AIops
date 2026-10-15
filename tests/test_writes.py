@@ -230,8 +230,8 @@ def test_rotate_client_secret_masks_old_and_new_values():
 def test_governed_disable_user_records_undo_token(monkeypatch):
     """End-to-end: the governed disable_user records an inverse in the undo store."""
     from identity_aiops.governance.undo import get_undo_store
+    from identity_aiops.mcp_server.tools import writes as t
     from identity_aiops.ops import users as user_ops
-    from mcp_server.tools import writes as t
 
     conn = _conn(KEYCLOAK)
     monkeypatch.setattr(user_ops, "user_detail",
@@ -250,8 +250,8 @@ def test_governed_redirect_uris_undo_replays_prior_list(monkeypatch):
     import json
 
     from identity_aiops.governance.undo import get_undo_store
+    from identity_aiops.mcp_server.tools import writes as t
     from identity_aiops.ops import clients as client_ops
-    from mcp_server.tools import writes as t
 
     conn = _conn(KEYCLOAK)
     monkeypatch.setattr(client_ops, "client_detail",
@@ -272,8 +272,8 @@ def test_governed_redirect_uris_undo_replays_prior_list(monkeypatch):
 @pytest.mark.unit
 def test_irreversible_writes_record_no_undo(monkeypatch):
     from identity_aiops.governance.undo import get_undo_store
+    from identity_aiops.mcp_server.tools import writes as t
     from identity_aiops.ops import users as user_ops
-    from mcp_server.tools import writes as t
 
     conn = _conn(KEYCLOAK)
     conn.get.return_value = {"value": "sec"}
@@ -293,7 +293,7 @@ def test_irreversible_writes_record_no_undo(monkeypatch):
 
 @pytest.mark.unit
 def test_undo_descriptors_invert_correctly():
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     d = t._disable_undo({"user_id": "u1"}, {"priorState": {"enabled": True}})
     assert d["tool"] == "enable_user" and d["params"] == {"user_id": "u1"}
@@ -324,9 +324,9 @@ def test_undo_descriptors_invert_correctly():
 def test_undo_descriptors_replay_through_real_tool_signatures(monkeypatch):
     """The recorded undo params must invoke the target tools without a
     TypeError — replayability is a contract, so actually call them."""
+    from identity_aiops.mcp_server.tools import writes as t
     from identity_aiops.ops import clients as client_ops
     from identity_aiops.ops import users as user_ops
-    from mcp_server.tools import writes as t
 
     conn = _conn(KEYCLOAK)
     conn.get.return_value = {"id": "u1", "requiredActions": ["UPDATE_PASSWORD"]}
@@ -356,7 +356,7 @@ def test_undo_descriptors_replay_through_real_tool_signatures(monkeypatch):
 
 @pytest.mark.unit
 def test_write_risk_tiers():
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     for fn in (t.enable_user, t.update_client_redirect_uris, t.rotate_client_secret):
         assert fn._risk_level == "high"
@@ -369,7 +369,7 @@ def test_write_risk_tiers():
 
 @pytest.mark.unit
 def test_dry_run_previews_do_not_mutate(monkeypatch):
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     conn = _conn(KEYCLOAK)
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)

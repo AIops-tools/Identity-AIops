@@ -8,8 +8,8 @@ transparent (thresholds included in the output) and read-only.
 from typing import Optional
 
 from identity_aiops.governance import governed_tool
+from identity_aiops.mcp_server._shared import _get_connection, mcp, tool_errors
 from identity_aiops.ops import analysis as ops
-from mcp_server._shared import _get_connection, mcp, tool_errors
 
 
 @mcp.tool()

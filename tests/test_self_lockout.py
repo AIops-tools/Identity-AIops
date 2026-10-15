@@ -162,7 +162,7 @@ def test_client_without_a_client_id_does_not_block_rotation(monkeypatch):
 
 @pytest.mark.unit
 def test_dry_run_of_a_self_disable_is_refused(monkeypatch):
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     conn = _conn("3")
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)
@@ -177,7 +177,7 @@ def test_dry_run_of_a_self_disable_is_refused(monkeypatch):
 @pytest.mark.unit
 def test_dry_run_of_a_normal_disable_still_previews(monkeypatch):
     """The dry-run guard must be exact, not a blanket refusal of every preview."""
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     conn = _conn("3")
     monkeypatch.setattr(t, "_get_connection", lambda target=None: conn)
@@ -192,7 +192,7 @@ def test_dry_run_of_a_normal_disable_still_previews(monkeypatch):
 
 @pytest.mark.unit
 def test_dry_run_of_a_self_rotation_is_refused(monkeypatch):
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     monkeypatch.setattr(client_ops, "client_detail",
                         lambda c, cid: {"id": cid, "clientId": "aiops-svc"})
@@ -209,7 +209,7 @@ def test_dry_run_of_a_self_rotation_is_refused(monkeypatch):
 @pytest.mark.unit
 def test_dry_run_of_another_clients_rotation_still_previews(monkeypatch):
     """Exactness: the extra client_detail GET must not turn into a blanket refusal."""
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     monkeypatch.setattr(client_ops, "client_detail",
                         lambda c, cid: {"id": cid, "clientId": "web-frontend"})
@@ -226,7 +226,7 @@ def test_dry_run_of_another_clients_rotation_still_previews(monkeypatch):
 @pytest.mark.unit
 def test_dry_run_fails_open_exactly_like_the_real_call(monkeypatch):
     """A dry_run must never refuse something the real call would allow."""
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     monkeypatch.setattr(client_ops, "client_detail",
                         lambda c, cid: {"error": "404 not found", "id": cid})
@@ -255,7 +255,7 @@ def _cli_dry_run(monkeypatch, tmp_path, argv, conn):
     import identity_aiops.governance.policy as policy_mod
     import identity_aiops.governance.undo as undo_mod
     from identity_aiops.cli import app
-    from mcp_server.tools import writes as gov
+    from identity_aiops.mcp_server.tools import writes as gov
 
     monkeypatch.setenv("IDENTITY_AIOPS_HOME", str(tmp_path))
     audit_mod.reset_engine()
@@ -328,7 +328,7 @@ def test_the_refusal_reaches_the_agent_intact_through_the_mcp_layer(monkeypatch)
     than replaced — but it is truncated. The route back sits at the END of the
     message, so an over-long refusal loses exactly the part the caller acts on.
     """
-    from mcp_server.tools import writes as t
+    from identity_aiops.mcp_server.tools import writes as t
 
     monkeypatch.setattr(client_ops, "client_detail",
                         lambda c, cid: {"id": cid, "clientId": "aiops-svc"})
