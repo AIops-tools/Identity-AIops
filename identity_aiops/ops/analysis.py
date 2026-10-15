@@ -494,6 +494,17 @@ def _client_findings(c: dict) -> list[dict]:
     return findings
 
 
+def _unevaluated_checks(c: dict) -> list[str]:
+    skipped = []
+    if c.get("implicitFlow") is None:
+        skipped.append("implicit-flow-enabled")
+    if c.get("directAccessGrants") is None:
+        skipped.append("password-grant-enabled")
+    if c.get("publicClient") and c.get("secretConfigured") is None:
+        skipped.append("public-client-with-secret")
+    return skipped
+
+
 def client_misconfig_audit(
     clients: list[dict],
     inputs_truncated: bool = False,
@@ -515,10 +526,13 @@ def client_misconfig_audit(
     ranked = []
     total_findings = 0
     evaluated = 0
+    not_evaluated: dict[str, int] = {}
     for c in clients or []:
         if not c.get("enabled", True):
             continue
         evaluated += 1
+        for issue in _unevaluated_checks(c):
+            not_evaluated[issue] = not_evaluated.get(issue, 0) + 1
         findings = _client_findings(c)
         if not findings:
             continue
@@ -539,6 +553,10 @@ def client_misconfig_audit(
         "truncated": len(ranked) > MAX_ROWS,
         "maxRows": MAX_ROWS,
         "inputsTruncated": bool(inputs_truncated),
+        # Checks skipped because the IdP does not report their input (null),
+        # with how many clients each was skipped for. A clean result is not a
+        # pass for these.
+        "checksNotEvaluated": not_evaluated,
         "note": (
             "Advisory read-only heuristic per the OAuth 2.0 Security BCP: "
             "riskScore = sum of severity weights; every finding lists its "

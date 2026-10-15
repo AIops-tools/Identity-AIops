@@ -53,7 +53,7 @@ percent-encoded centrally.
 |------|------|----------|
 | `login_failure_rca` | failed-login events (windowed) | password-spray (one IP → many users), targeted-brute-force (many IPs → one user), stale-stored-credential (one IP → one user), misconfigured-client (client-credential errors), expired-credential-storm, lockout-storm — each with counts, cause, action; thresholds included in output |
 | `stale_access_audit` | users + successful logins + sessions | staleUsers (idle > N days), neverLoggedIn, serviceAccountsInteractive, orphanedSessions |
-| `client_misconfig_audit` | normalized clients | wildcard-redirect-uri, http-redirect-uri (non-localhost), public-client-with-secret, implicit-flow-enabled, public-client-missing-pkce, password-grant-enabled — ranked riskScore (high=30/med=15/low=5) |
+| `client_misconfig_audit` | normalized clients | wildcard-redirect-uri, http-redirect-uri (non-localhost), public-client-with-secret, implicit-flow-enabled, public-client-missing-pkce, password-grant-enabled — ranked riskScore (high=30/med=15/low=5); `checksNotEvaluated` counts checks skipped because the IdP does not report their input (authentik providers have no implicit-flow or password-grant toggle) — a clean result is not a pass for those |
 | `mfa_coverage_analysis` | users + per-user credentials | coverage % overall/per group, usersWithoutMfa; second factors = otp/totp/hotp/webauthn/duo/sms (confirmed) |
 
 ## Writes (governed: dry_run preview, audit, undo where reversible)

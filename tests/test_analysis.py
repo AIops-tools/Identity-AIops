@@ -252,3 +252,65 @@ def test_mfa_per_group_breakdown_sorted_worst_first():
 def test_mfa_empty_realm_is_zero_not_crash():
     out = mfa_coverage_analysis([], {})
     assert out["usersEvaluated"] == 0 and out["coveragePct"] == 0.0
+
+
+# ── authentik: checks whose input the IdP never reports are "not evaluated" ──
+
+
+@pytest.mark.unit
+def test_authentik_provider_flags_are_unknown_not_false():
+    from identity_aiops.ops.clients import norm_client
+
+    row = norm_client({"pk": 5, "client_id": "spa", "client_type": "public",
+                       "redirect_uris": [{"matching_mode": "strict", "url": "https://a/cb"}]})
+    assert row["implicitFlow"] is None
+    assert row["directAccessGrants"] is None
+    assert row["secretConfigured"] is None
+
+
+@pytest.mark.unit
+def test_keycloak_reported_false_stays_false():
+    from identity_aiops.ops.clients import norm_client
+
+    row = norm_client({"id": "1", "clientId": "web", "implicitFlowEnabled": False,
+                       "directAccessGrantsEnabled": False, "secret": ""})
+    assert row["implicitFlow"] is False and row["directAccessGrants"] is False
+    assert row["secretConfigured"] is False
+
+
+@pytest.mark.unit
+def test_audit_reports_checks_it_could_not_run():
+    out = client_misconfig_audit([
+        {"clientId": "spa", "enabled": True, "publicClient": True, "redirectUris": [],
+         "implicitFlow": None, "directAccessGrants": None, "secretConfigured": None,
+         "pkceMethod": "S256"},
+    ])
+    assert out["clientsFlagged"] == 0
+    assert out["checksNotEvaluated"] == {
+        "implicit-flow-enabled": 1, "password-grant-enabled": 1,
+        "public-client-with-secret": 1,
+    }
+
+
+@pytest.mark.unit
+def test_audit_with_full_input_has_no_unevaluated_checks():
+    out = client_misconfig_audit([
+        {"clientId": "web", "enabled": True, "publicClient": False, "redirectUris": [],
+         "implicitFlow": False, "directAccessGrants": False, "secretConfigured": None,
+         "pkceMethod": None},
+    ])
+    # The secret check applies only to public clients, so an unknown secret on
+    # a confidential client skips nothing.
+    assert out["checksNotEvaluated"] == {}
+
+
+@pytest.mark.unit
+def test_keycloak_public_client_without_secret_key_is_measured_false():
+    from identity_aiops.ops.clients import norm_client
+
+    # Keycloak omits null fields: a public client with no secret has no key.
+    row = norm_client({"id": "1", "clientId": "spa", "publicClient": True,
+                       "implicitFlowEnabled": False, "directAccessGrantsEnabled": False})
+    assert row["secretConfigured"] is False
+    out = client_misconfig_audit([{**row, "enabled": True}])
+    assert out["checksNotEvaluated"] == {}

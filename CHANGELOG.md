@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- `client_misconfig_audit` on authentik: providers have no implicit-flow or
+  password-grant toggle, and the missing fields were read as `false`, so the
+  audit reported two security checks it never ran as passed. Client rows now
+  carry `null` for settings the IdP does not report (`implicitFlow`,
+  `directAccessGrants`, `serviceAccounts`, and on authentik `secretConfigured` — on
+  Keycloak a missing secret still means none), and the audit
+  adds `checksNotEvaluated` with the number of clients each skipped check
+  applies to.
+
 ## v0.10.0 — 2026-10-15
 
 ### Fixed

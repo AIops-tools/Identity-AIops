@@ -41,6 +41,14 @@ def redirect_uris(r: dict) -> list[str]:
     return [s(u, 200) for u in uris if u]
 
 
+def _opt_flag(value: Any) -> bool | None:
+    return None if value is None else to_bool(value)
+
+
+def _opt_present(value: Any) -> bool | None:
+    return None if value is None else bool(value)
+
+
 def norm_client(r: dict) -> dict:
     """Normalise one client/provider row across Keycloak / authentik.
 
@@ -63,10 +71,18 @@ def norm_client(r: dict) -> dict:
         "protocol": s(pick(r, "protocol", default="openid-connect")),
         "publicClient": public,
         "redirectUris": redirect_uris(r),
-        "implicitFlow": to_bool(pick(r, "implicitFlowEnabled", default=False)),
-        "directAccessGrants": to_bool(pick(r, "directAccessGrantsEnabled", default=False)),
-        "serviceAccounts": to_bool(pick(r, "serviceAccountsEnabled", default=False)),
-        "secretConfigured": bool(pick(r, "secret", "client_secret", default="")),
+        # None = the IdP does not report this setting (authentik providers have
+        # no implicit-flow or password-grant toggle). False would make the
+        # audit report a check it never ran as passed.
+        "implicitFlow": _opt_flag(pick(r, "implicitFlowEnabled")),
+        "directAccessGrants": _opt_flag(pick(r, "directAccessGrantsEnabled")),
+        "serviceAccounts": _opt_flag(pick(r, "serviceAccountsEnabled")),
+        # Keycloak (rows keyed `clientId`) omits null fields, so no `secret`
+        # key means no secret; authentik rows that lack the field stay unknown.
+        "secretConfigured": (
+            bool(r.get("secret")) if "clientId" in r
+            else _opt_present(pick(r, "secret", "client_secret"))
+        ),
         "pkceMethod": opt_s(pick(attrs, "pkce.code.challenge.method")),
     }
 
