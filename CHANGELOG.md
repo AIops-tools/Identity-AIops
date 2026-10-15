@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.11.0 — 2026-10-15
 
 ### Fixed
 - `client_misconfig_audit` on authentik: providers have no implicit-flow or
