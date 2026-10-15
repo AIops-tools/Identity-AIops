@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.9.0 — 2026-10-15
 
 ### Added
 - MCP tool annotations derived from each tool's governance `risk_level`, so
