@@ -2,6 +2,8 @@
 
 # Identity AIops
 
+> **Audit availability:** Real writes require a committed `pending` audit row and stop before contacting the platform if storage is unavailable. Reads and previews may continue with a warning; new audit rows store outcome summaries rather than full responses.
+
 **Governed AI-ops for self-hosted identity providers — Keycloak + authentik.**
 
 `identity-aiops` gives AI agents (and the humans supervising them) a safe,

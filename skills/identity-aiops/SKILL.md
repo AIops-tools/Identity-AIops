@@ -31,6 +31,8 @@ compatibility: >
 
 # Identity AIops
 
+> **Audit availability:** Real writes require a durable audit intent. Reads and previews can continue if audit storage fails; check the warning and audit health before relying on their audit trail.
+
 > **Disclaimer**: Community-maintained open-source project, **not affiliated with, endorsed by, or sponsored by the Keycloak project, Red Hat, Authentik Security Inc., or the authentik project.** Keycloak and authentik are trademarks of their respective owners. Source at [github.com/AIops-tools/Identity-AIops](https://github.com/AIops-tools/Identity-AIops) under the MIT license.
 
 Governed identity operations — **29 MCP tools** across **Keycloak** (admin REST
